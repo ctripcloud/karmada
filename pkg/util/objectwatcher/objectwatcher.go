@@ -66,6 +66,11 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 		return err
 	}
 
+	// TODO: more common
+	// for SmartHPA here
+	if desireObj.GroupVersionKind().Group == "autoscaling.karrier.io" {
+		desireObj.SetOwnerReferences(nil)
+	}
 	// Karmada will adopt creating resource due to an existing resource in member cluster, because we don't want to force update or delete the resource created by users.
 	// users should resolve the conflict in person.
 	clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
@@ -116,8 +121,11 @@ func (o *objectWatcherImpl) Update(cluster *v1alpha1.Cluster, desireObj, cluster
 		return err
 	}
 
-	// TODO: for SmartHPA
-	desireObj.SetOwnerReferences(clusterObj.GetOwnerReferences())
+	// TODO: more common
+	// for SmartHPA here
+	if desireObj.GroupVersionKind().Group == "autoscaling.karrier.io" {
+		desireObj.SetOwnerReferences(clusterObj.GetOwnerReferences())
+	}
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
 	if err != nil {
 		klog.Errorf("Failed to update resource(kind=%s, %s/%s), err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), err)
