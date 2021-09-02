@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -29,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -300,6 +302,57 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 func (d *ResourceDetector) OnDelete(obj interface{}) {
 	d.OnAdd(obj)
 }
+func (d *ResourceDetector) LookForMatchedClusters(clusterAffinity *policyv1alpha1.ClusterAffinity) ([]workv1alpha1.TargetCluster, error) {
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := d.Client.List(context.TODO(), clusterList); err != nil {
+		klog.Errorf("Failed to list cluster: %v", err)
+		return nil, err
+	}
+
+	result := make([]workv1alpha1.TargetCluster, 0)
+	for cn, _ := range ClustersMatchSelector(clusterList, clusterAffinity) {
+		result = append(result, workv1alpha1.TargetCluster{Name: cn})
+	}
+
+	return result, nil
+}
+func ClustersMatchSelector(clusterList *clusterv1alpha1.ClusterList, clusterAffinity *policyv1alpha1.ClusterAffinity) sets.String {
+	result := sets.String{}
+	for _, cluster := range clusterList.Items {
+		isExist, err := ClusterMatchSelector(&cluster, clusterAffinity)
+		if err != nil {
+			continue
+		}
+		if isExist {
+			result.Insert(cluster.Name)
+		} else if result.Has(cluster.Name) {
+			result.Delete(cluster.Name)
+		}
+	}
+	return result
+}
+func ClusterMatchSelector(cluster *clusterv1alpha1.Cluster, clusterAffinity *policyv1alpha1.ClusterAffinity) (bool, error) {
+	for _, ecn := range clusterAffinity.ExcludeClusters {
+		if ecn == cluster.Name {
+			return false, nil
+		}
+	}
+	for _, cn := range clusterAffinity.ClusterNames {
+		if cn == cluster.Name {
+			return true, nil
+		}
+	}
+	if clusterAffinity.LabelSelector != nil {
+		s, err := metav1.LabelSelectorAsSelector(clusterAffinity.LabelSelector)
+		if err != nil {
+			return false, err
+		}
+		if s.Matches(labels.Set(cluster.Labels)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 // LookForMatchedPolicy tries to find a policy for object referenced by object key.
 func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.PropagationPolicy, error) {
@@ -392,6 +445,14 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		bindingCopy.Labels = binding.Labels
 		bindingCopy.OwnerReferences = binding.OwnerReferences
 		bindingCopy.Spec.Resource = binding.Spec.Resource
+		if len(bindingCopy.Spec.Clusters) == 0 {
+			clusters, err := d.LookForMatchedClusters(policy.Spec.Placement.ClusterAffinity)
+			if err != nil {
+				klog.Errorf("Failed to look clusters for object: %s. error: %v", objectKey, err)
+				return err
+			}
+			bindingCopy.Spec.Clusters = clusters
+		}
 		return nil
 	})
 	if err != nil {
@@ -438,6 +499,14 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Spec.Resource = binding.Spec.Resource
+			if len(bindingCopy.Spec.Clusters) == 0 {
+				clusters, err := d.LookForMatchedClusters(policy.Spec.Placement.ClusterAffinity)
+				if err != nil {
+					klog.Errorf("Failed to look clusters for object: %s. error: %v", objectKey, err)
+					return err
+				}
+				bindingCopy.Spec.Clusters = clusters
+			}
 			return nil
 		})
 
