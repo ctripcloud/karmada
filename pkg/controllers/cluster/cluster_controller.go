@@ -13,8 +13,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	utilerrors "k8s.io/apimachinery/pkg/util/errors"
-	"k8s.io/apimachinery/pkg/util/wait"
+	//utilerrors "k8s.io/apimachinery/pkg/util/errors"
+	//"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
@@ -86,6 +86,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 }
 
 // Start starts an asynchronous loop that monitors the status of cluster.
+/*
 func (c *Controller) Start(ctx context.Context) error {
 	klog.Infof("Starting cluster health monitor")
 	defer klog.Infof("Shutting cluster health monitor")
@@ -100,13 +101,17 @@ func (c *Controller) Start(ctx context.Context) error {
 
 	return nil
 }
+*/
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
-	return utilerrors.NewAggregate([]error{
-		controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c),
-		mgr.Add(c),
-	})
+	/*
+		return utilerrors.NewAggregate([]error{
+			controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c),
+			mgr.Add(c),
+		})
+	*/
+	return controllerruntime.NewControllerManagedBy(mgr).For(&v1alpha1.Cluster{}).Complete(c)
 }
 
 func (c *Controller) syncCluster(cluster *v1alpha1.Cluster) (controllerruntime.Result, error) {
@@ -246,6 +251,7 @@ func (c *Controller) createExecutionSpace(cluster *v1alpha1.Cluster) error {
 	return nil
 }
 
+/*
 func (c *Controller) monitorClusterHealth() error {
 	clusterList := &v1alpha1.ClusterList{}
 	if err := c.Client.List(context.TODO(), clusterList); err != nil {
@@ -279,6 +285,7 @@ func (c *Controller) monitorClusterHealth() error {
 
 	return nil
 }
+*/
 
 // tryUpdateClusterHealth checks a given cluster's conditions and tries to update it.
 //nolint:gocyclo

@@ -20,7 +20,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
 	//clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
-	//"github.com/karmada-io/karmada/pkg/controllers/cluster"
+	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
 	//"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
@@ -129,18 +129,17 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
 
+	clusterController := &cluster.Controller{
+		Client:                    mgr.GetClient(),
+		EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
+		ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
+		ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
+		ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
+	}
+	if err := clusterController.SetupWithManager(mgr); err != nil {
+		klog.Fatalf("Failed to setup cluster controller: %v", err)
+	}
 	/*
-			clusterController := &cluster.Controller{
-				Client:                    mgr.GetClient(),
-				EventRecorder:             mgr.GetEventRecorderFor(cluster.ControllerName),
-				ClusterMonitorPeriod:      opts.ClusterMonitorPeriod.Duration,
-				ClusterMonitorGracePeriod: opts.ClusterMonitorGracePeriod.Duration,
-				ClusterStartupGracePeriod: opts.ClusterStartupGracePeriod.Duration,
-			}
-			if err := clusterController.SetupWithManager(mgr); err != nil {
-				klog.Fatalf("Failed to setup cluster controller: %v", err)
-			}
-
 			clusterPredicateFunc := predicate.Funcs{
 				CreateFunc: func(createEvent event.CreateEvent) bool {
 					obj := createEvent.Object.(*clusterv1alpha1.Cluster)
@@ -158,6 +157,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 					return false
 				},
 			}
+
 
 		clusterStatusController := &status.ClusterStatusController{
 			Client:                            mgr.GetClient(),
