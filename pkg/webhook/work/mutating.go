@@ -97,6 +97,8 @@ func removeIrrelevantField(workload *unstructured.Unstructured) {
 	// populated by the kubernetes.
 	unstructured.RemoveNestedField(workload.Object, "metadata", "uid")
 
+	unstructured.RemoveNestedField(workload.Object, "metadata", "ownerReferences")
+
 	unstructured.RemoveNestedField(workload.Object, "status")
 
 	if workload.GetKind() == util.ServiceKind {
