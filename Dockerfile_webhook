@@ -1,0 +1,15 @@
+FROM hub.cloud.ctripcorp.com/k8s-mirror/golang:1.14 as builder
+
+RUN mkdir -p /go/src/github.com/karmada-io/karmada
+
+ADD . /go/src/github.com/karmada-io/karmada
+
+WORKDIR /go/src/github.com/karmada-io/karmada/cmd/webhook
+
+RUN GOPROXY="https://goproxy.io" GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o /go/bin/webhook .
+
+FROM hub.cloud.ctripcorp.com/container/alpine:3.5
+
+WORKDIR /usr/local/bin
+
+COPY --from=builder /go/bin/webhook .
