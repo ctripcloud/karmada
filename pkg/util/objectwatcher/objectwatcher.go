@@ -79,7 +79,7 @@ func (o *objectWatcherImpl) Create(cluster *v1alpha1.Cluster, desireObj *unstruc
 		// - 1. In a reconcile process, the execution controller successfully applied resource to member cluster but failed to update the work conditions(Applied=True),
 		//   when reconcile again, the controller will try to apply(by create) the resource again.
 		// - 2. The resource already exist in the member cluster but it's not created by karmada.
-		if apierrors.IsAlreadyExists(err) {
+		if apierrors.IsAlreadyExists(err) || strings.Contains(err.Error(), "already exists") {
 			existObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(context.TODO(), desireObj.GetName(), metav1.GetOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to get exist resource(kind=%s, %s/%s) in cluster %v: %v", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), cluster.Name, err)
