@@ -19,7 +19,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	//"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -69,15 +69,23 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
-			err := c.tryDeleteWorkload(cluster, work)
-			if err != nil {
-				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return controllerruntime.Result{Requeue: true}, err
+		/*
+			applied := helper.IsResourceApplied(&work.Status)
+			if applied {
+				err := c.tryDeleteWorkload(cluster, work)
+				if err != nil {
+					klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+					return controllerruntime.Result{Requeue: true}, err
+				}
+				return c.removeFinalizer(work)
 			}
-			return c.removeFinalizer(work)
+		*/
+		err := c.tryDeleteWorkload(cluster, work)
+		if err != nil {
+			klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			return controllerruntime.Result{Requeue: true}, err
 		}
+		return c.removeFinalizer(work)
 	}
 
 	return c.syncWork(cluster, work)
@@ -166,21 +174,29 @@ func (c *Controller) syncToClusters(cluster *v1alpha1.Cluster, work *workv1alpha
 			continue
 		}
 
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
-			err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
-			if err != nil {
-				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
-				errs = append(errs, err)
-				continue
+		/*
+			applied := helper.IsResourceApplied(&work.Status)
+			if applied {
+				err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
+				if err != nil {
+					klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+					errs = append(errs, err)
+					continue
+				}
+			} else {
+				err = c.tryCreateWorkload(cluster, workload)
+				if err != nil {
+					klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+					errs = append(errs, err)
+					continue
+				}
 			}
-		} else {
-			err = c.tryCreateWorkload(cluster, workload)
-			if err != nil {
-				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
-				errs = append(errs, err)
-				continue
-			}
+		*/
+		err = c.tryUpdateWorkload(cluster, workload, clusterDynamicClient)
+		if err != nil {
+			klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			errs = append(errs, err)
+			continue
 		}
 		syncSucceedNum++
 	}
