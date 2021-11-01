@@ -34,6 +34,8 @@ func RetainClusterFields(desiredObj, clusterObj *unstructured.Unstructured) erro
 	// and be set by user in karmada-controller-plane.
 	util.MergeAnnotations(desiredObj, clusterObj)
 
+	desiredObj.SetDeletionGracePeriodSeconds(clusterObj.GetDeletionGracePeriodSeconds())
+
 	switch targetKind {
 	case util.PodKind:
 		return retainPodFields(desiredObj, clusterObj)

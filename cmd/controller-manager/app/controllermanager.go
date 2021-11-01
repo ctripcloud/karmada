@@ -10,21 +10,21 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
-	kubeclientset "k8s.io/client-go/kubernetes"
+	//kubeclientset "k8s.io/client-go/kubernetes"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/event"
+	//"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	//"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app/options"
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
+	//clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/controllers/binding"
 	"github.com/karmada-io/karmada/pkg/controllers/cluster"
 	"github.com/karmada-io/karmada/pkg/controllers/execution"
-	"github.com/karmada-io/karmada/pkg/controllers/hpa"
+	//"github.com/karmada-io/karmada/pkg/controllers/hpa"
 	"github.com/karmada-io/karmada/pkg/controllers/mcs"
-	"github.com/karmada-io/karmada/pkg/controllers/namespace"
+	//"github.com/karmada-io/karmada/pkg/controllers/namespace"
 	"github.com/karmada-io/karmada/pkg/controllers/propagationpolicy"
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -69,6 +69,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 		LeaderElectionID:       "karmada-controller-manager",
 		HealthProbeBindAddress: fmt.Sprintf("%s:%d", opts.BindAddress, opts.SecurePort),
 		LivenessEndpointName:   "/healthz",
+		MetricsBindAddress:     opts.MetricsBindAddress,
 	})
 	if err != nil {
 		klog.Errorf("failed to build controller manager: %v", err)
@@ -119,6 +120,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		DynamicClient:                dynamicClientSet,
 		SkippedResourceConfig:        skippedResourceConfig,
 		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		ManagedGroups:                opts.ManagedGroups,
 	}
 
 	resourceDetector.EventHandler = informermanager.NewFilteringHandlerOnAllEvents(resourceDetector.EventFilter, resourceDetector.OnAdd, resourceDetector.OnUpdate, resourceDetector.OnDelete)
@@ -137,51 +139,55 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	if err := clusterController.SetupWithManager(mgr); err != nil {
 		klog.Fatalf("Failed to setup cluster controller: %v", err)
 	}
+	/*
+			clusterPredicateFunc := predicate.Funcs{
+				CreateFunc: func(createEvent event.CreateEvent) bool {
+					obj := createEvent.Object.(*clusterv1alpha1.Cluster)
+					return obj.Spec.SyncMode == clusterv1alpha1.Push
+				},
+				UpdateFunc: func(updateEvent event.UpdateEvent) bool {
+					obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
+					return obj.Spec.SyncMode == clusterv1alpha1.Push
+				},
+				DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
+					obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
+					return obj.Spec.SyncMode == clusterv1alpha1.Push
+				},
+				GenericFunc: func(genericEvent event.GenericEvent) bool {
+					return false
+				},
+			}
 
-	clusterPredicateFunc := predicate.Funcs{
-		CreateFunc: func(createEvent event.CreateEvent) bool {
-			obj := createEvent.Object.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		UpdateFunc: func(updateEvent event.UpdateEvent) bool {
-			obj := updateEvent.ObjectNew.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		DeleteFunc: func(deleteEvent event.DeleteEvent) bool {
-			obj := deleteEvent.Object.(*clusterv1alpha1.Cluster)
-			return obj.Spec.SyncMode == clusterv1alpha1.Push
-		},
-		GenericFunc: func(genericEvent event.GenericEvent) bool {
-			return false
-		},
-	}
 
-	clusterStatusController := &status.ClusterStatusController{
-		Client:                            mgr.GetClient(),
-		KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
-		EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
-		PredicateFunc:                     clusterPredicateFunc,
-		InformerManager:                   informermanager.GetInstance(),
-		StopChan:                          stopChan,
-		ClusterClientSetFunc:              util.NewClusterClientSet,
-		ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
-		ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
-		ClusterLeaseDuration:              opts.ClusterLeaseDuration,
-		ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
-	}
-	if err := clusterStatusController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup cluster status controller: %v", err)
-	}
+		clusterStatusController := &status.ClusterStatusController{
+			Client:                            mgr.GetClient(),
+			KubeClient:                        kubeclientset.NewForConfigOrDie(mgr.GetConfig()),
+			EventRecorder:                     mgr.GetEventRecorderFor(status.ControllerName),
+			PredicateFunc:                     clusterPredicateFunc,
+			InformerManager:                   informermanager.GetInstance(),
+			StopChan:                          stopChan,
+			ClusterClientSetFunc:              util.NewClusterClientSet,
+			ClusterDynamicClientSetFunc:       util.NewClusterDynamicClientSet,
+			ClusterStatusUpdateFrequency:      opts.ClusterStatusUpdateFrequency,
+			ClusterLeaseDuration:              opts.ClusterLeaseDuration,
+			ClusterLeaseRenewIntervalFraction: opts.ClusterLeaseRenewIntervalFraction,
+		}
+		if err := clusterStatusController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup cluster status controller: %v", err)
+		}
+	*/
 
-	hpaController := &hpa.HorizontalPodAutoscalerController{
-		Client:        mgr.GetClient(),
-		DynamicClient: dynamicClientSet,
-		EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
-		RESTMapper:    mgr.GetRESTMapper(),
-	}
-	if err := hpaController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup hpa controller: %v", err)
-	}
+	/*
+		hpaController := &hpa.HorizontalPodAutoscalerController{
+			Client:        mgr.GetClient(),
+			DynamicClient: dynamicClientSet,
+			EventRecorder: mgr.GetEventRecorderFor(hpa.ControllerName),
+			RESTMapper:    mgr.GetRESTMapper(),
+		}
+		if err := hpaController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup hpa controller: %v", err)
+		}
+	*/
 
 	policyController := &propagationpolicy.Controller{
 		Client: mgr.GetClient(),
@@ -240,14 +246,16 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		klog.Fatalf("Failed to setup work status controller: %v", err)
 	}
 
-	namespaceSyncController := &namespace.Controller{
-		Client:                       mgr.GetClient(),
-		EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
-		SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
-	}
-	if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
-		klog.Fatalf("Failed to setup namespace sync controller: %v", err)
-	}
+	/*
+		namespaceSyncController := &namespace.Controller{
+			Client:                       mgr.GetClient(),
+			EventRecorder:                mgr.GetEventRecorderFor(namespace.ControllerName),
+			SkippedPropagatingNamespaces: skippedPropagatingNamespaces,
+		}
+		if err := namespaceSyncController.SetupWithManager(mgr); err != nil {
+			klog.Fatalf("Failed to setup namespace sync controller: %v", err)
+		}
+	*/
 
 	serviceExportController := &mcs.ServiceExportController{
 		Client:                      mgr.GetClient(),

@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
@@ -29,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
@@ -75,6 +77,8 @@ type ResourceDetector struct {
 	waitingLock sync.RWMutex
 
 	stopCh <-chan struct{}
+
+	ManagedGroups []string
 }
 
 // Start runs the detector, never stop until stopCh closed.
@@ -146,7 +150,7 @@ var _ manager.LeaderElectionRunnable = &ResourceDetector{}
 
 func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
-		newResources := GetDeletableResources(d.DiscoveryClientSet)
+		newResources := GetDeletableResources(d.DiscoveryClientSet, d.ManagedGroups)
 		for r := range newResources {
 			if d.InformerManager.IsHandlerExist(r, d.EventHandler) {
 				continue
@@ -298,6 +302,100 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 func (d *ResourceDetector) OnDelete(obj interface{}) {
 	d.OnAdd(obj)
 }
+func (d *ResourceDetector) LookForMatchedClusters(placement *policyv1alpha1.Placement) ([]workv1alpha1.TargetCluster, error) {
+	clusterAffinity := placement.ClusterAffinity
+
+	clusterList := &clusterv1alpha1.ClusterList{}
+	if err := d.Client.List(context.TODO(), clusterList); err != nil {
+		klog.Errorf("Failed to list cluster: %v", err)
+		return nil, err
+	}
+	/*
+		readyClusters := make([]clusterv1alpha1.Cluster, 0)
+		for _, cluster := range clusterList.Items {
+			if IsClusterReady(&cluster.Status) {
+				readyClusters = append(readyClusters, cluster)
+			}
+		}
+		readyClusterList := &clusterv1alpha1.ClusterList{}
+		readyClusterList.Items = readyClusters
+		clusterList = readyClusterList
+	*/
+	result := make([]workv1alpha1.TargetCluster, 0)
+	for cn := range ClustersMatchSelector(clusterList, clusterAffinity) {
+		result = append(result, workv1alpha1.TargetCluster{Name: cn})
+	}
+
+	return result, nil
+}
+
+func IsUpdateBindingClusters(resourceBinding *workv1alpha1.ResourceBinding, placement *policyv1alpha1.Placement) (string, bool) {
+	if len(resourceBinding.Spec.Clusters) == 0 {
+		return "", true
+	}
+
+	policyPlacementStr, err := GetPlacementBytes(placement)
+	if err != nil {
+		return "", false
+	}
+
+	appliedPlacement := util.GetLabelValue(resourceBinding.Annotations, util.PolicyPlacementAnnotation)
+	if policyPlacementStr != appliedPlacement {
+		return policyPlacementStr, true
+	}
+
+	return "", false
+}
+
+func GetPlacementBytes(placement *policyv1alpha1.Placement) (string, error) {
+	placementBytes, err := json.Marshal(*placement)
+	if err != nil {
+		return "", err
+	}
+	return string(placementBytes), nil
+}
+
+func IsClusterReady(clusterStatus *clusterv1alpha1.ClusterStatus) bool {
+	return meta.IsStatusConditionTrue(clusterStatus.Conditions, clusterv1alpha1.ClusterConditionReady)
+}
+
+func ClustersMatchSelector(clusterList *clusterv1alpha1.ClusterList, clusterAffinity *policyv1alpha1.ClusterAffinity) sets.String {
+	result := sets.String{}
+	for _, cluster := range clusterList.Items {
+		isExist, err := ClusterMatchSelector(&cluster, clusterAffinity)
+		if err != nil {
+			continue
+		}
+		if isExist {
+			result.Insert(cluster.Name)
+		} else if result.Has(cluster.Name) {
+			result.Delete(cluster.Name)
+		}
+	}
+	return result
+}
+func ClusterMatchSelector(cluster *clusterv1alpha1.Cluster, clusterAffinity *policyv1alpha1.ClusterAffinity) (bool, error) {
+	for _, ecn := range clusterAffinity.ExcludeClusters {
+		if ecn == cluster.Name {
+			return false, nil
+		}
+	}
+	for _, cn := range clusterAffinity.ClusterNames {
+		if cn == cluster.Name {
+			return true, nil
+		}
+	}
+	if clusterAffinity.LabelSelector != nil {
+		s, err := metav1.LabelSelectorAsSelector(clusterAffinity.LabelSelector)
+		if err != nil {
+			return false, err
+		}
+		if s.Matches(labels.Set(cluster.Labels)) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
 
 // LookForMatchedPolicy tries to find a policy for object referenced by object key.
 func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.PropagationPolicy, error) {
@@ -390,6 +488,19 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		bindingCopy.Labels = binding.Labels
 		bindingCopy.OwnerReferences = binding.OwnerReferences
 		bindingCopy.Spec.Resource = binding.Spec.Resource
+		placementStr, isUpdate := IsUpdateBindingClusters(bindingCopy, &policy.Spec.Placement)
+		if isUpdate {
+			clusters, err := d.LookForMatchedClusters(&policy.Spec.Placement)
+			if err != nil {
+				klog.Errorf("Failed to look clusters for object: %s. error: %v", objectKey, err)
+				return err
+			}
+			bindingCopy.Spec.Clusters = clusters
+			if bindingCopy.Annotations == nil {
+				bindingCopy.Annotations = make(map[string]string)
+			}
+			bindingCopy.Annotations[util.PolicyPlacementAnnotation] = placementStr
+		}
 		return nil
 	})
 	if err != nil {
@@ -436,6 +547,19 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Labels = binding.Labels
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Spec.Resource = binding.Spec.Resource
+			placementStr, isUpdate := IsUpdateBindingClusters(bindingCopy, &policy.Spec.Placement)
+			if isUpdate {
+				clusters, err := d.LookForMatchedClusters(&policy.Spec.Placement)
+				if err != nil {
+					klog.Errorf("Failed to look clusters for object: %s. error: %v", objectKey, err)
+					return err
+				}
+				bindingCopy.Spec.Clusters = clusters
+				if bindingCopy.Annotations == nil {
+					bindingCopy.Annotations = make(map[string]string)
+				}
+				bindingCopy.Annotations[util.PolicyPlacementAnnotation] = placementStr
+			}
 			return nil
 		})
 
