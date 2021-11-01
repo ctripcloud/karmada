@@ -71,13 +71,10 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 	}
 
 	if !work.DeletionTimestamp.IsZero() {
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
-			err := c.tryDeleteWorkload(cluster, work)
-			if err != nil {
-				klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
-				return controllerruntime.Result{Requeue: true}, err
-			}
+		err := c.tryDeleteWorkload(cluster, work)
+		if err != nil {
+			klog.Errorf("Failed to delete work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			return controllerruntime.Result{Requeue: true}, err
 		}
 		return c.removeFinalizer(work)
 	}
@@ -167,21 +164,11 @@ func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *work
 			continue
 		}
 
-		applied := helper.IsResourceApplied(&work.Status)
-		if applied {
-			err = c.tryUpdateWorkload(cluster, workload)
-			if err != nil {
-				klog.Errorf("Failed to update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
-				errs = append(errs, err)
-				continue
-			}
-		} else {
-			err = c.tryCreateWorkload(cluster, workload)
-			if err != nil {
-				klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
-				errs = append(errs, err)
-				continue
-			}
+		err = c.tryUpdateOrCreateWorkload(cluster, workload)
+		if err != nil {
+			klog.Errorf("Failed to update or create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), cluster.Name, err)
+			errs = append(errs, err)
+			continue
 		}
 		syncSucceedNum++
 	}
@@ -206,7 +193,7 @@ func (c *Controller) syncToClusters(cluster *clusterv1alpha1.Cluster, work *work
 	return nil
 }
 
-func (c *Controller) tryUpdateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
+func (c *Controller) tryUpdateOrCreateWorkload(cluster *clusterv1alpha1.Cluster, workload *unstructured.Unstructured) error {
 	fedKey, err := keys.FederatedKeyFunc(cluster.Name, workload)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
