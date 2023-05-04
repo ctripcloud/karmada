@@ -31,6 +31,7 @@ spec:
             - --secure-port=10357
             - --failover-eviction-timeout=30s
             - --v=4
+            - --feature-gates=InterpretCustomizedSchedulingRes=true
           livenessProbe:
             httpGet:
               path: /healthz

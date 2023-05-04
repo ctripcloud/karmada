@@ -3,6 +3,7 @@ package luavm
 import (
 	"encoding/json"
 	"reflect"
+	"sort"
 	"testing"
 
 	lua "github.com/yuin/gopher-lua"
@@ -22,12 +23,14 @@ import (
 func TestGetReplicas(t *testing.T) {
 	vm := New(false, 1)
 	tests := []struct {
-		name         string
-		deploy       *appsv1.Deployment
-		luaScript    string
-		expected     bool
-		wantReplica  int32
-		wantRequires *workv1alpha2.ReplicaRequirements
+		name              string
+		deploy            *appsv1.Deployment
+		luaScript         string
+		interpretSchedRes bool
+		expected          bool
+		wantReplica       int32
+		wantRequires      *workv1alpha2.ReplicaRequirements
+		wantClusters      []workv1alpha2.TargetCluster
 	}{
 		{
 			name: "Test GetReplica with kube.accuratePodRequirements",
@@ -66,7 +69,7 @@ local kube = require("kube")
 function GetReplicas(desiredObj)
 	replica = desiredObj.spec.replicas
 	requires = kube.accuratePodRequirements(desiredObj.spec.template)
-	return replica, requires 
+	return replica, requires
 end`,
 			wantReplica: 1,
 			wantRequires: &workv1alpha2.ReplicaRequirements{
@@ -127,9 +130,88 @@ function GetReplicas(desiredObj)
 		requires.resourceRequest.cpu = kube.resourceAdd(requires.resourceRequest.cpu, desiredObj.spec.template.spec.containers[i].resources.limits.cpu)
 		requires.resourceRequest.memory = kube.resourceAdd(requires.resourceRequest.memory, desiredObj.spec.template.spec.containers[i].resources.limits.memory)
 	end
-	return replica, requires 
+	return replica, requires
 end`,
 			wantReplica: 1,
+			wantRequires: &workv1alpha2.ReplicaRequirements{
+				NodeClaim: &workv1alpha2.NodeClaim{
+					NodeSelector: map[string]string{"foo": "foo1"},
+					Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+				},
+				ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceCPU:    resource.MustParse("1.3"),
+					corev1.ResourceMemory: resource.MustParse("1.3G"),
+				},
+			},
+		},
+		{
+			name: "Test GetReplica with clusters",
+			deploy: &appsv1.Deployment{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Deployment",
+					APIVersion: "v1",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "foo",
+					Name:      "bar",
+				},
+				Spec: appsv1.DeploymentSpec{
+					Replicas: pointer.Int32(3),
+					Template: corev1.PodTemplateSpec{
+						Spec: corev1.PodSpec{
+							NodeSelector: map[string]string{"foo": "foo1"},
+							Tolerations:  []corev1.Toleration{{Key: "bar", Operator: corev1.TolerationOpExists}},
+							Containers: []corev1.Container{
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("100M"),
+								}}},
+								{Resources: corev1.ResourceRequirements{Limits: map[corev1.ResourceName]resource.Quantity{
+									corev1.ResourceCPU:    resource.MustParse("1.2"),
+									corev1.ResourceMemory: resource.MustParse("1.2G"),
+								}}},
+							},
+						},
+					},
+				},
+			},
+			expected:          true,
+			interpretSchedRes: true,
+			luaScript: `
+local kube = require("kube")
+function GetReplicas(desiredObj)
+	replica = desiredObj.spec.replicas
+	requires = {
+		nodeClaim = {
+			nodeSelector = desiredObj.spec.template.spec.nodeSelector,
+			tolerations = desiredObj.spec.template.spec.tolerations
+    	},
+		resourceRequest = {},
+	}
+	for i = 1, #desiredObj.spec.template.spec.containers do
+		requires.resourceRequest.cpu = kube.resourceAdd(requires.resourceRequest.cpu, desiredObj.spec.template.spec.containers[i].resources.limits.cpu)
+		requires.resourceRequest.memory = kube.resourceAdd(requires.resourceRequest.memory, desiredObj.spec.template.spec.containers[i].resources.limits.memory)
+	end
+	clusters = {}
+	clusters[1] = {}
+	clusters[1].name = "cluster1"
+	clusters[1].replicas = 2
+	clusters[2] = {}
+	clusters[2].name = "cluster2"
+	clusters[2].replicas = desiredObj.spec.replicas - clusters[1].replicas
+	return replica, requires, clusters
+end`,
+			wantReplica: 3,
+			wantClusters: []workv1alpha2.TargetCluster{
+				{
+					Name:     "cluster1",
+					Replicas: 2,
+				},
+				{
+					Name:     "cluster2",
+					Replicas: 1,
+				},
+			},
 			wantRequires: &workv1alpha2.ReplicaRequirements{
 				NodeClaim: &workv1alpha2.NodeClaim{
 					NodeSelector: map[string]string{"foo": "foo1"},
@@ -146,7 +228,7 @@ end`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			toUnstructured, _ := helper.ToUnstructured(tt.deploy)
-			replicas, requires, err := vm.GetReplicas(toUnstructured, tt.luaScript)
+			replicas, clusters, requires, err := vm.GetReplicas(toUnstructured, tt.luaScript, tt.interpretSchedRes)
 			if err != nil {
 				t.Fatal(err.Error())
 			}
@@ -164,6 +246,16 @@ end`,
 			requires.ResourceRequest, tt.wantRequires.ResourceRequest = nil, nil
 			if !reflect.DeepEqual(requires, tt.wantRequires) {
 				t.Errorf("GetReplicas() got = %v, want %v", requires, tt.wantRequires)
+			}
+
+			if !tt.interpretSchedRes {
+				return
+			}
+
+			sort.Slice(clusters, func(i, j int) bool { return clusters[i].Name < clusters[j].Name })
+			sort.Slice(tt.wantClusters, func(i, j int) bool { return tt.wantClusters[i].Name < tt.wantClusters[j].Name })
+			if !reflect.DeepEqual(clusters, tt.wantClusters) {
+				t.Errorf("GetReplicas() got Clusters = %v, want %v", clusters, tt.wantClusters)
 			}
 		})
 	}

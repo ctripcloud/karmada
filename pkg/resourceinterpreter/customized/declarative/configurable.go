@@ -64,7 +64,9 @@ func (c *ConfigurableInterpreter) HookEnabled(kind schema.GroupVersionKind, oper
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured) (replicas int32, requires *workv1alpha2.ReplicaRequirements, enabled bool, err error) {
+// It also returns clusters with cluster name and replicas if a customized schedule result is expected.
+func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured) (replicas int32, requires *workv1alpha2.ReplicaRequirements,
+	clusters []workv1alpha2.TargetCluster, enabled bool, schedResEnabled bool, err error) {
 	klog.V(4).Infof("Get replicas for object: %v %s/%s with configurable interpreter.", object.GroupVersionKind(), object.GetNamespace(), object.GetName())
 
 	accessor, enabled := c.getCustomAccessor(object.GroupVersionKind())
@@ -72,13 +74,15 @@ func (c *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 		return
 	}
 
+	schedResEnabled = accessor.EnabledInterpretCustomizedSchedulingResult()
+
 	script := accessor.GetReplicaResourceLuaScript()
 	if len(script) == 0 {
 		enabled = false
 		return
 	}
 
-	replicas, requires, err = c.luaVM.GetReplicas(object, script)
+	replicas, clusters, requires, err = c.luaVM.GetReplicas(object, script, schedResEnabled)
 	return
 }
 

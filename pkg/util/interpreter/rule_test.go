@@ -141,7 +141,9 @@ function GetReplicas(desiredObj)
   nodeClaim.hardNodeAffinity = {}
   nodeClaim.nodeSelector = {}
   nodeClaim.tolerations = {}
-  return replica, nodeClaim
+  -- If enabled interpreting customized scheduling replicas, the following code should be invoked. 
+  -- clusters = {}
+  return replica, nodeClaim --, clusters -- If enabled interpreting customized scheduling replicas.
 end`
 	assert.Equal(t, expected, rule.Document())
 }

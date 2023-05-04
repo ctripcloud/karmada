@@ -99,6 +99,10 @@ spec:
                         and query parameters (\"?...\") are not allowed, either."
                       type: string
                   type: object
+                interpretCustomizedSchedulingResult:
+                  description: InterpretCustomizedSchedulingResult indicates if enable
+                    interpreting customized scheduling result.
+                  type: boolean
                 interpreterContextVersions:
                   description: InterpreterContextVersions is an ordered list of preferred
                     `ResourceInterpreterContext` versions the Webhook expects. Karmada

@@ -72,8 +72,10 @@ func (e *CustomizedInterpreter) HookEnabled(objGVK schema.GroupVersionKind, oper
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
+// It also returns clusters with cluster name and replicas if a customized schedule result is expected.
 // return matched value to indicate whether there is a matching hook.
-func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *request.Attributes) (replica int32, requires *workv1alpha2.ReplicaRequirements, matched bool, err error) {
+func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *request.Attributes) (replica int32, requires *workv1alpha2.ReplicaRequirements,
+	clusters []workv1alpha2.TargetCluster, matched bool, schedResEnabled bool, err error) {
 	klog.V(4).Infof("Get replicas for object: %v %s/%s with webhook interpreter.",
 		attributes.Object.GroupVersionKind(), attributes.Object.GetNamespace(), attributes.Object.GetName())
 	var response *request.ResponseAttributes
@@ -85,7 +87,11 @@ func (e *CustomizedInterpreter) GetReplicas(ctx context.Context, attributes *req
 		return
 	}
 
-	return response.Replicas, response.ReplicaRequirements, matched, nil
+	if response.ExtraConfigs.InterpretCustomizedSchedulingResult {
+		clusters = response.Clusters
+	}
+
+	return response.Replicas, response.ReplicaRequirements, clusters, matched, response.ExtraConfigs.InterpretCustomizedSchedulingResult, nil
 }
 
 // Patch returns the Unstructured object that applied patch response that based on the RequestAttributes.
@@ -252,6 +258,8 @@ func (e *CustomizedInterpreter) callHook(ctx context.Context, hook configmanager
 			Reason:      fmt.Errorf("webhook call failed, get status code: %d, msg: %s", res.Status.Code, res.Status.Message),
 		}
 	}
+
+	res.ExtraConfigs = hook.GetExtraConfigs()
 
 	return res, nil
 }

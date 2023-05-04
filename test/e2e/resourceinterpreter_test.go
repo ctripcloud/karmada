@@ -329,6 +329,12 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 		ginkgo.BeforeEach(func() {
 			targetCluster = framework.ClusterNames()[rand.Intn(len(framework.ClusterNames()))]
 			deployment = testhelper.NewDeployment(testNamespace, deploymentNamePrefix+rand.String(RandomStrLength))
+			annotations := deployment.GetAnnotations()
+			if annotations == nil {
+				annotations = make(map[string]string)
+			}
+			annotations["object.karmada.io/cluster"] = targetCluster
+			deployment.SetAnnotations(annotations)
 			policy = testhelper.NewPropagationPolicy(testNamespace, deployment.Name, []policyv1alpha1.ResourceSelector{
 				{
 					APIVersion: deployment.APIVersion,
@@ -338,6 +344,20 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 			}, policyv1alpha1.Placement{
 				ClusterAffinity: &policyv1alpha1.ClusterAffinity{
 					ClusterNames: []string{targetCluster},
+				},
+				ReplicaScheduling: &policyv1alpha1.ReplicaSchedulingStrategy{
+					ReplicaSchedulingType:     policyv1alpha1.ReplicaSchedulingTypeDivided,
+					ReplicaDivisionPreference: policyv1alpha1.ReplicaDivisionPreferenceWeighted,
+					WeightPreference: &policyv1alpha1.ClusterPreferences{
+						StaticWeightList: []policyv1alpha1.StaticClusterWeight{
+							{
+								TargetCluster: policyv1alpha1.ClusterAffinity{
+									ClusterNames: framework.ClusterNames(),
+								},
+								Weight: 1,
+							},
+						},
+					},
 				},
 			})
 		})
@@ -397,6 +417,80 @@ var _ = framework.SerialDescribe("Resource interpreter customization testing", f
 						klog.Infof("ResourceBinding(%s/%s)'s replicas is %d, expected: %d.",
 							resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.Replicas, expectedReplicas)
 						if resourceBinding.Spec.Replicas != expectedReplicas {
+							return false, nil
+						}
+
+						klog.Infof("ResourceBinding(%s/%s)'s replicaRequirements is %+v, expected: %+v.",
+							resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.ReplicaRequirements, expectedReplicaRequirements)
+						return reflect.DeepEqual(resourceBinding.Spec.ReplicaRequirements, expectedReplicaRequirements), nil
+					}, pollTimeout, pollInterval).Should(gomega.Equal(true))
+				})
+			})
+		})
+
+		ginkgo.Context("InterpreterOperation InterpretReplica with interpreting customized scheduling result testing", func() {
+			ginkgo.BeforeEach(func() {
+				customization = testhelper.NewResourceInterpreterCustomization(
+					"interpreter-customization"+rand.String(RandomStrLength),
+					configv1alpha1.CustomizationTarget{
+						APIVersion: "apps/v1",
+						Kind:       "Deployment",
+					},
+					configv1alpha1.CustomizationRules{
+						ReplicaResource: &configv1alpha1.ReplicaResourceRequirement{
+							InterpretCustomizedSchedulingResult: true,
+							LuaScript: `
+	function GetReplicas(desiredObj)
+	  replica = desiredObj.spec.replicas + 1
+	  clusters = {}
+	  for k, v in pairs(desiredObj.metadata.annotations) do
+	    if k == "object.karmada.io/cluster" then
+	      clusters[1] = {}
+	      clusters[1].name = v
+	      clusters[1].replicas = replica
+	      break
+	    end
+	  end
+	  requirement = {}
+	  requirement.nodeClaim = {}
+	  requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
+	  requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
+	  requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
+	  return replica, requirement, clusters
+	end`,
+						},
+					})
+			})
+
+			ginkgo.It("InterpretReplica testing", func() {
+				ginkgo.By("check if workload's replica is interpreted", func() {
+					resourceBindingName := names.GenerateBindingName(deployment.Kind, deployment.Name)
+					// Just for the current test case to distinguish the build-in logic.
+					expectedReplicas := *deployment.Spec.Replicas + 1
+					expectedClusters := []workv1alpha2.TargetCluster{
+						{
+							Name:     targetCluster,
+							Replicas: expectedReplicas,
+						},
+					}
+					expectedReplicaRequirements := &workv1alpha2.ReplicaRequirements{
+						ResourceRequest: map[corev1.ResourceName]resource.Quantity{
+							corev1.ResourceCPU: resource.MustParse("100m"),
+						}}
+
+					gomega.Eventually(func(g gomega.Gomega) (bool, error) {
+						resourceBinding, err := karmadaClient.WorkV1alpha2().ResourceBindings(deployment.Namespace).Get(context.TODO(), resourceBindingName, metav1.GetOptions{})
+						g.Expect(err).NotTo(gomega.HaveOccurred())
+
+						klog.Infof("ResourceBinding(%s/%s)'s replicas is %d, expected: %d.",
+							resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.Replicas, expectedReplicas)
+						if resourceBinding.Spec.Replicas != expectedReplicas {
+							return false, nil
+						}
+
+						klog.Infof("ResourceBinding(%s/%s)'s clusters is %+v, expected: %+v.",
+							resourceBinding.Namespace, resourceBinding.Name, resourceBinding.Spec.Clusters, expectedClusters)
+						if !reflect.DeepEqual(resourceBinding.Spec.Clusters, expectedClusters) {
 							return false, nil
 						}
 

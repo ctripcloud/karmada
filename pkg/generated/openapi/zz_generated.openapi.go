@@ -34,6 +34,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.CustomizationTarget":                         schema_pkg_apis_config_v1alpha1_CustomizationTarget(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependencyInterpretation":                    schema_pkg_apis_config_v1alpha1_DependencyInterpretation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference":                    schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref),
+		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ExtraConfigs":                                schema_pkg_apis_config_v1alpha1_ExtraConfigs(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.HealthInterpretation":                        schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.LocalValueRetention":                         schema_pkg_apis_config_v1alpha1_LocalValueRetention(ref),
 		"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.ReplicaResourceRequirement":                  schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref),
@@ -1248,6 +1249,26 @@ func schema_pkg_apis_config_v1alpha1_DependentObjectReference(ref common.Referen
 	}
 }
 
+func schema_pkg_apis_config_v1alpha1_ExtraConfigs(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ExtraConfigs includes some optional parametes used for different operations.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"interpretCustomizedSchedulingResult": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InterpretCustomizedSchedulingResult indicates if enable interpreting customized scheduling result.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_config_v1alpha1_HealthInterpretation(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -1299,9 +1320,16 @@ func schema_pkg_apis_config_v1alpha1_ReplicaResourceRequirement(ref common.Refer
 				Description: "ReplicaResourceRequirement holds the scripts for getting the desired replicas as well as the resource requirement of each replica.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"interpretCustomizedSchedulingResult": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InterpretCustomizedSchedulingResult indicates if enable interpreting customized scheduling result. If enabled, the count of results returned by lua script would be 3.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"luaScript": {
 						SchemaProps: spec.SchemaProps{
-							Description: "LuaScript holds the Lua script that is used to discover the resource's replica as well as resource requirements\n\nThe script should implement a function as follows:\n    luaScript: >\n        function GetReplicas(desiredObj)\n            replica = desiredObj.spec.replicas\n            requirement = {}\n            requirement.nodeClaim = {}\n            requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector\n            requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations\n            requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits\n            return replica, requirement\n        end\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects two return values:\n  - replica: the declared replica number\n  - requirement: the resource required by each replica expressed with a\n      ResourceBindingSpec.ReplicaRequirements.\nThe returned values will be set into a ResourceBinding or ClusterResourceBinding.",
+							Description: "LuaScript holds the Lua script that is used to discover the resource's replica as well as resource requirements\n\nThe script should implement a function as follows:\n    luaScript: >\n        function GetReplicas(desiredObj)\n            replica = desiredObj.spec.replicas\n            requirement = {}\n            requirement.nodeClaim = {}\n            requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector\n            requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations\n            requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits\n            -- If enable interpreting customized scheduling result, the following code should be invoked.\n            -- clusters = {}\n            -- clusters[1] = {}\n            -- clusters[1].name = \"cluster1\"\n            -- clusters[1].replicas = desiredObj.spec.replicas\n            return replica, requirement --, clusters --if enabled interpreting customized scheduling result\n        end\n\nThe content of the LuaScript needs to be a whole function including both declaration and implementation.\n\nThe parameters will be supplied by the system:\n  - desiredObj: the object represents the configuration to be applied\n      to the member cluster.\n\nThe function expects two or three return values:\n  - replica: the declared replica number\n  - requirement: the resource required by each replica expressed with a\n      ResourceBindingSpec.ReplicaRequirements.\n  if enabled interpreting customized scheduling replicas:\n  - clusters: the customized schedule result expressed with a\n      ResourceBindingSpec.Clusters.\nThe returned values will be set into a ResourceBinding or ClusterResourceBinding.",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -1697,12 +1725,26 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 							Format:      "",
 						},
 					},
+					"clusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Clusters represents the referencing object's customized schedule result.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"uid", "successful"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 
@@ -1713,6 +1755,13 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterWebhook(ref common.Refer
 				Description: "ResourceInterpreterWebhook describes the webhook as well as the resources and operations it applies to.",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"interpretCustomizedSchedulingResult": {
+						SchemaProps: spec.SchemaProps{
+							Description: "InterpretCustomizedSchedulingResult indicates if enable interpreting customized scheduling result.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"name": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Name is the full-qualified name of the webhook.",

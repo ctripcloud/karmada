@@ -29,6 +29,9 @@ type WebhookAccessor interface {
 
 	// GetRESTClient gets the webhook client.
 	GetRESTClient(clientManager *webhookutil.ClientManager) (*rest.RESTClient, error)
+
+	// GetExtraConfigs gets the extra configs of webhook.
+	GetExtraConfigs() configv1alpha1.ExtraConfigs
 }
 
 type resourceExploringAccessor struct {
@@ -87,6 +90,10 @@ func (a *resourceExploringAccessor) GetRESTClient(clientManager *webhookutil.Cli
 		a.client, a.clientErr = clientManager.HookClient(hookClientConfigForWebhook(a.Name, a.ClientConfig))
 	})
 	return a.client, a.clientErr
+}
+
+func (a *resourceExploringAccessor) GetExtraConfigs() configv1alpha1.ExtraConfigs {
+	return a.ResourceInterpreterWebhook.ExtraConfigs
 }
 
 // hookClientConfigForWebhook construct a webhookutil.ClientConfig using an admissionregistrationv1.WebhookClientConfig

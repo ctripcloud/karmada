@@ -64,7 +64,7 @@ func (p *ConfigurableInterpreter) GetReplicas(object *unstructured.Unstructured)
 		return
 	}
 
-	replicas, requires, err = p.luaVM.GetReplicas(object, script)
+	replicas, _, requires, err = p.luaVM.GetReplicas(object, script, false)
 	return
 }
 

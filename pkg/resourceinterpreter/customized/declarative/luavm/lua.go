@@ -112,15 +112,22 @@ func (vm *VM) RunScript(script string, fnName string, nRets int, args ...interfa
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica by lua script.
-func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
-	results, err := vm.RunScript(script, "GetReplicas", 2, obj)
+// It also returns clusters with cluster name and replicas if a customized schedule result is expected.
+func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string, interpretSchedRes bool) (
+	replica int32, clusters []workv1alpha2.TargetCluster, requires *workv1alpha2.ReplicaRequirements, err error) {
+	var results []lua.LValue
+	if interpretSchedRes {
+		results, err = vm.RunScript(script, "GetReplicas", 3, obj)
+	} else {
+		results, err = vm.RunScript(script, "GetReplicas", 2, obj)
+	}
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 
 	replica, err = ConvertLuaResultToInt(results[0])
 	if err != nil {
-		return 0, nil, err
+		return 0, nil, nil, err
 	}
 
 	replicaRequirementResult := results[1]
@@ -129,12 +136,27 @@ func (vm *VM) GetReplicas(obj *unstructured.Unstructured, script string) (replic
 		err = ConvertLuaResultInto(replicaRequirementResult, requires)
 		if err != nil {
 			klog.Errorf("ConvertLuaResultToReplicaRequirements err %v", err.Error())
-			return 0, nil, err
+			return 0, nil, nil, err
 		}
 	} else if replicaRequirementResult.Type() == lua.LTNil {
 		requires = nil
 	} else {
-		return 0, nil, fmt.Errorf("expect the returned requires type is table but got %s", replicaRequirementResult.Type())
+		return 0, nil, nil, fmt.Errorf("expect the returned requires type is table but got %s", replicaRequirementResult.Type())
+	}
+
+	if !interpretSchedRes {
+		return
+	}
+
+	clustersResult := results[2]
+	if clustersResult.Type() == lua.LTTable {
+		err = ConvertLuaResultInto(clustersResult, &clusters)
+		if err != nil {
+			klog.Errorf("ConvertLuaResultToTargetClusters err %v", err.Error())
+			return 0, nil, nil, err
+		}
+	} else if clustersResult.Type() != lua.LTNil {
+		return 0, nil, nil, fmt.Errorf("expect the returned clusters type is table but got %s", clustersResult.Type())
 	}
 
 	return

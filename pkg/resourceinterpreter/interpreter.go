@@ -28,7 +28,8 @@ type ResourceInterpreter interface {
 	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
+	// It also returns clusters with cluster name and replicas if a customized schedule result is expected.
+	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, clusters []workv1alpha2.TargetCluster, schedResEnabled bool, err error)
 
 	// ReviseReplica revises the replica of the given object.
 	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
@@ -97,10 +98,12 @@ func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKi
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
+// It also returns clusters with cluster name and replicas if a customized schedule result is expected.
+func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (
+	replica int32, requires *workv1alpha2.ReplicaRequirements, clusters []workv1alpha2.TargetCluster, schedResEnabled bool, err error) {
 	var hookEnabled bool
 
-	replica, requires, hookEnabled, err = i.configurableInterpreter.GetReplicas(object)
+	replica, requires, clusters, hookEnabled, schedResEnabled, err = i.configurableInterpreter.GetReplicas(object)
 	if err != nil {
 		return
 	}
@@ -108,7 +111,7 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 		return
 	}
 
-	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &request.Attributes{
+	replica, requires, clusters, hookEnabled, schedResEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &request.Attributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})

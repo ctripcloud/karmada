@@ -181,6 +181,27 @@ status:
     readyReplicas: 5
 `,
 		},
+		{
+			name: "execute interpretReplica with interpreting customized scheduling result",
+			options: &Options{
+				FilenameOptions: resource.FilenameOptions{Filenames: []string{"./testdata/customization_interpret_sched_res.yml"}},
+				Operation:       "interpretReplica",
+				ObservedFile:    "./testdata/observed.yml",
+				Rules:           interpreter.AllResourceInterpreterCustomizationRules,
+			},
+			want: `---
+# [1/3] replica:
+3
+---
+# [2/3] requires:
+resourceRequest:
+    cpu: 100m
+---
+# [3/3] clusters:
+- name: cluster1
+  replicas: 3
+`,
+		},
 	}
 
 	for _, tt := range tests {

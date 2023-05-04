@@ -136,6 +136,10 @@ type LocalValueRetention struct {
 // ReplicaResourceRequirement holds the scripts for getting the desired replicas
 // as well as the resource requirement of each replica.
 type ReplicaResourceRequirement struct {
+	// InterpretCustomizedSchedulingResult indicates if enable interpreting customized scheduling result.
+	// If enabled, the count of results returned by lua script would be 3.
+	// +optional
+	InterpretCustomizedSchedulingResult bool `json:"interpretCustomizedSchedulingResult,omitempty"`
 	// LuaScript holds the Lua script that is used to discover the resource's
 	// replica as well as resource requirements
 	//
@@ -148,7 +152,12 @@ type ReplicaResourceRequirement struct {
 	//             requirement.nodeClaim.nodeSelector = desiredObj.spec.template.spec.nodeSelector
 	//             requirement.nodeClaim.tolerations = desiredObj.spec.template.spec.tolerations
 	//             requirement.resourceRequest = desiredObj.spec.template.spec.containers[1].resources.limits
-	//             return replica, requirement
+	//             -- If enable interpreting customized scheduling result, the following code should be invoked.
+	//             -- clusters = {}
+	//             -- clusters[1] = {}
+	//             -- clusters[1].name = "cluster1"
+	//             -- clusters[1].replicas = desiredObj.spec.replicas
+	//             return replica, requirement --, clusters --if enabled interpreting customized scheduling result
 	//         end
 	//
 	// The content of the LuaScript needs to be a whole function including both
@@ -158,10 +167,13 @@ type ReplicaResourceRequirement struct {
 	//   - desiredObj: the object represents the configuration to be applied
 	//       to the member cluster.
 	//
-	// The function expects two return values:
+	// The function expects two or three return values:
 	//   - replica: the declared replica number
 	//   - requirement: the resource required by each replica expressed with a
 	//       ResourceBindingSpec.ReplicaRequirements.
+	//   if enabled interpreting customized scheduling replicas:
+	//   - clusters: the customized schedule result expressed with a
+	//       ResourceBindingSpec.Clusters.
 	// The returned values will be set into a ResourceBinding or ClusterResourceBinding.
 	// +required
 	LuaScript string `json:"luaScript"`

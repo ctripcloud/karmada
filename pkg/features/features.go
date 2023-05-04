@@ -18,6 +18,10 @@ const (
 
 	// CustomizedClusterResourceModeling indicates if enable cluster resource custom modeling.
 	CustomizedClusterResourceModeling featuregate.Feature = "CustomizedClusterResourceModeling"
+
+	// InterpretCustomizedSchedulingRes indicates if enable interpreting customized scheduling result
+	// in point "InterpretReplica" of resourceInterpreter.
+	InterpretCustomizedSchedulingRes featuregate.Feature = "InterpretCustomizedSchedulingRes"
 )
 
 var (
@@ -30,6 +34,7 @@ var (
 		GracefulEviction:                  {Default: true, PreRelease: featuregate.Beta},
 		PropagateDeps:                     {Default: true, PreRelease: featuregate.Beta},
 		CustomizedClusterResourceModeling: {Default: true, PreRelease: featuregate.Beta},
+		InterpretCustomizedSchedulingRes:  {Default: false, PreRelease: featuregate.Alpha},
 	}
 )
 

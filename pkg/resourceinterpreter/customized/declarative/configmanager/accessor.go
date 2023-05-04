@@ -20,6 +20,7 @@ type LuaScriptAccessor interface {
 	GetStatusAggregationLuaScript() string
 	GetHealthInterpretationLuaScript() string
 	GetDependencyInterpretationLuaScripts() []string
+	EnabledInterpretCustomizedSchedulingResult() bool
 }
 
 // CustomAccessor provides a common interface to get custom interpreter configuration.
@@ -121,6 +122,14 @@ func (a *resourceCustomAccessor) GetDependencyInterpretationLuaScripts() []strin
 		}
 	}
 	return scripts
+}
+
+func (a *resourceCustomAccessor) EnabledInterpretCustomizedSchedulingResult() bool {
+	if a.replicaResource == nil {
+		return false
+	}
+
+	return a.replicaResource.InterpretCustomizedSchedulingResult
 }
 
 func (a *resourceCustomAccessor) setRetain(retention *configv1alpha1.LocalValueRetention) {

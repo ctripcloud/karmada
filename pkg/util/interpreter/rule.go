@@ -91,7 +91,9 @@ function GetReplicas(desiredObj)
   nodeClaim.hardNodeAffinity = {}
   nodeClaim.nodeSelector = {}
   nodeClaim.tolerations = {}
-  return replica, nodeClaim
+  -- If enabled interpreting customized scheduling replicas, the following code should be invoked. 
+  -- clusters = {}
+  return replica, nodeClaim --, clusters -- If enabled interpreting customized scheduling replicas.
 end`
 }
 
@@ -119,14 +121,20 @@ func (r *replicaResourceRule) Run(interpreter *declarative.ConfigurableInterpret
 	if err != nil {
 		return newRuleResultWithError(err)
 	}
-	replica, requires, enabled, err := interpreter.GetReplicas(obj)
+	replica, requires, clusters, enabled, schedResEnabled, err := interpreter.GetReplicas(obj)
 	if err != nil {
 		return newRuleResultWithError(err)
 	}
 	if !enabled {
 		return newRuleResultWithError(fmt.Errorf("rule is not enabled"))
 	}
-	return newRuleResult().add("replica", replica).add("requires", requires)
+
+	result := newRuleResult().add("replica", replica).add("requires", requires)
+	if schedResEnabled {
+		result.add("clusters", clusters)
+	}
+
+	return result
 }
 
 type replicaRevisionRule struct {

@@ -35,6 +35,8 @@ type ResourceInterpreterWebhookConfiguration struct {
 
 // ResourceInterpreterWebhook describes the webhook as well as the resources and operations it applies to.
 type ResourceInterpreterWebhook struct {
+	ExtraConfigs `json:",inline"`
+
 	// Name is the full-qualified name of the webhook.
 	// +required
 	Name string `json:"name"`
@@ -64,6 +66,13 @@ type ResourceInterpreterWebhook struct {
 	// include any versions known to the Karmada, calls to the webhook will fail
 	// and be subject to the failure policy.
 	InterpreterContextVersions []string `json:"interpreterContextVersions"`
+}
+
+// ExtraConfigs includes some optional parametes used for different operations.
+type ExtraConfigs struct {
+	// InterpretCustomizedSchedulingResult indicates if enable interpreting customized scheduling result.
+	// +optional
+	InterpretCustomizedSchedulingResult bool `json:"interpretCustomizedSchedulingResult,omitempty"`
 }
 
 // RuleWithOperations is a tuple of Operations and Resources. It is recommended to make

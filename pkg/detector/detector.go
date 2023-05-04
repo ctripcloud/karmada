@@ -2,6 +2,7 @@ package detector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"sync"
@@ -31,6 +32,7 @@ import (
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
@@ -406,7 +408,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
-			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
+			// Just update necessary fields, especially avoid unexpected modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = binding.OwnerReferences
 			bindingCopy.Finalizers = binding.Finalizers
@@ -417,6 +419,11 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
+			// Only when scheduling result is interpreted by resource interpreter it could be modified.
+			if features.FeatureGate.Enabled(features.InterpretCustomizedSchedulingRes) && len(binding.Spec.Clusters) != 0 {
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+				bindingCopy.Spec.Clusters = binding.Spec.Clusters
+			}
 			return nil
 		})
 		if err != nil {
@@ -493,6 +500,11 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
 				bindingCopy.Spec.Failover = binding.Spec.Failover
+				// Only when enabled scheduling result is interpreted by resource interpreter it could be modified.
+				if features.FeatureGate.Enabled(features.InterpretCustomizedSchedulingRes) && len(binding.Spec.Clusters) != 0 {
+					bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+					bindingCopy.Spec.Clusters = binding.Spec.Clusters
+				}
 				return nil
 			})
 			if err != nil {
@@ -537,6 +549,11 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
 			bindingCopy.Spec.Failover = binding.Spec.Failover
+			// Only when scheduling result is interpreted by resource interpreter it could be modified.
+			if len(binding.Spec.Clusters) != 0 {
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+				bindingCopy.Spec.Clusters = binding.Spec.Clusters
+			}
 			return nil
 		})
 		if err != nil {
@@ -648,13 +665,35 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		replicas, replicaRequirements, clusters, schedResEnabled, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
 		}
 		propagationBinding.Spec.Replicas = replicas
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
+
+		// Only when enaled in both feature gate and configuration it could work, and the customized result should not be empty nor violate the replicas limit.
+		// TODO: The customized result should not violate the placement limit neither.
+		if features.FeatureGate.Enabled(features.InterpretCustomizedSchedulingRes) && schedResEnabled {
+			if len(clusters) != 0 {
+				customizedReplicas := int32(0)
+				for _, cluster := range clusters {
+					customizedReplicas += cluster.Replicas
+				}
+
+				if customizedReplicas == replicas {
+					propagationBinding.Spec.Clusters = clusters
+					placementBytes, err := json.Marshal(*propagationBinding.Spec.Placement)
+					if err != nil {
+						klog.V(4).ErrorS(err, "Failed to marshal binding placement", "resourceBinding", klog.KObj(propagationBinding))
+					}
+					propagationBinding.Annotations = map[string]string{
+						util.PolicyPlacementAnnotation: string(placementBytes),
+					}
+				}
+			}
+		}
 	}
 
 	return propagationBinding, nil
@@ -688,13 +727,35 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 	}
 
 	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		replicas, replicaRequirements, clusters, schedResEnabled, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
 		}
 		binding.Spec.Replicas = replicas
 		binding.Spec.ReplicaRequirements = replicaRequirements
+
+		// Only when enaled in both feature gate and configuration it could work, and the customized result should not be empty nor violate the replicas limit.
+		// TODO: The customized result should not violate the placement limit neither.
+		if features.FeatureGate.Enabled(features.InterpretCustomizedSchedulingRes) && schedResEnabled {
+			if len(clusters) != 0 {
+				customizedReplicas := int32(0)
+				for _, cluster := range clusters {
+					customizedReplicas += cluster.Replicas
+				}
+
+				if customizedReplicas == replicas {
+					binding.Spec.Clusters = clusters
+					placementBytes, err := json.Marshal(*binding.Spec.Placement)
+					if err != nil {
+						klog.V(4).ErrorS(err, "Failed to marshal binding placement", "clusterResourceBinding", klog.KObj(binding))
+					}
+					binding.Annotations = map[string]string{
+						util.PolicyPlacementAnnotation: string(placementBytes),
+					}
+				}
+			}
+		}
 	}
 
 	return binding, nil

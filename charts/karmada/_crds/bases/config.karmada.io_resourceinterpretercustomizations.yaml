@@ -97,6 +97,12 @@ spec:
                       info from them. But if it is set, the built-in discovery rules
                       will be ignored.
                     properties:
+                      interpretCustomizedSchedulingResult:
+                        description: InterpretCustomizedSchedulingResult indicates
+                          if enable interpreting customized scheduling result. If
+                          enabled, the count of results returned by lua script would
+                          be 3.
+                        type: boolean
                       luaScript:
                         description: "LuaScript holds the Lua script that is used
                           to discover the resource's replica as well as resource requirements
@@ -106,15 +112,23 @@ spec:
                           = desiredObj.spec.template.spec.nodeSelector requirement.nodeClaim.tolerations
                           = desiredObj.spec.template.spec.tolerations requirement.resourceRequest
                           = desiredObj.spec.template.spec.containers[1].resources.limits
-                          return replica, requirement end \n The content of the LuaScript
-                          needs to be a whole function including both declaration
-                          and implementation. \n The parameters will be supplied by
-                          the system: - desiredObj: the object represents the configuration
-                          to be applied to the member cluster. \n The function expects
-                          two return values: - replica: the declared replica number
-                          - requirement: the resource required by each replica expressed
-                          with a ResourceBindingSpec.ReplicaRequirements. The returned
-                          values will be set into a ResourceBinding or ClusterResourceBinding."
+                          -- If enable interpreting customized scheduling result,
+                          the following code should be invoked. -- clusters = {} --
+                          clusters[1] = {} -- clusters[1].name = \"cluster1\" -- clusters[1].replicas
+                          = desiredObj.spec.replicas return replica, requirement --,
+                          clusters --if enabled interpreting customized scheduling
+                          result end \n The content of the LuaScript needs to be a
+                          whole function including both declaration and implementation.
+                          \n The parameters will be supplied by the system: - desiredObj:
+                          the object represents the configuration to be applied to
+                          the member cluster. \n The function expects two or three
+                          return values: - replica: the declared replica number -
+                          requirement: the resource required by each replica expressed
+                          with a ResourceBindingSpec.ReplicaRequirements. if enabled
+                          interpreting customized scheduling replicas: - clusters:
+                          the customized schedule result expressed with a ResourceBindingSpec.Clusters.
+                          The returned values will be set into a ResourceBinding or
+                          ClusterResourceBinding."
                         type: string
                     required:
                     - luaScript
