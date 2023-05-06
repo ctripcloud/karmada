@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -235,16 +234,22 @@ func FetchWorkload(dynamicClient dynamic.Interface, informerManager genericmanag
 		workload, err = informerManager.Lister(dynamicResource).ByNamespace(resource.Namespace).Get(resource.Name)
 	}
 	if err != nil {
-		// fall back to call api server in case the cache has not been synchronized yet
-		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v. Fall back to call api server",
+		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v",
 			resource.Kind, resource.Namespace, resource.Name, err)
-		workload, err = dynamicClient.Resource(dynamicResource).Namespace(resource.Namespace).Get(context.TODO(),
-			resource.Name, metav1.GetOptions{})
-		if err != nil {
-			klog.Errorf("Failed to get workload from api server, kind: %s, namespace: %s, name: %s. Error: %v",
+		return nil, err
+		/*
+			// fall back to call api server in case the cache has not been synchronized yet
+			klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v. Fall back to call api server",
 				resource.Kind, resource.Namespace, resource.Name, err)
-			return nil, err
-		}
+
+				workload, err = dynamicClient.Resource(dynamicResource).Namespace(resource.Namespace).Get(context.TODO(),
+					resource.Name, metav1.GetOptions{})
+				if err != nil {
+					klog.Errorf("Failed to get workload from api server, kind: %s, namespace: %s, name: %s. Error: %v",
+						resource.Kind, resource.Namespace, resource.Name, err)
+					return nil, err
+				}
+		*/
 	}
 
 	unstructuredWorkLoad, err := ToUnstructured(workload)
