@@ -478,7 +478,7 @@ func (c *WorkStatusController) getSingleClusterManager(cluster *clusterv1alpha1.
 
 // SetupWithManager creates a controller and register to controller manager.
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
-	return controllerruntime.NewControllerManagedBy(mgr).
+	return controllerruntime.NewControllerManagedBy(mgr).Named("build-resource-informers for work").
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
