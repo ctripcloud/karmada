@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	corev1 "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
@@ -50,14 +51,16 @@ type ResourceInterpreter interface {
 }
 
 // NewResourceInterpreter builds a new ResourceInterpreter object.
-func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager) ResourceInterpreter {
+func NewResourceInterpreter(informer genericmanager.SingleClusterInformerManager, serviceLister corev1.ServiceLister) ResourceInterpreter {
 	return &customResourceInterpreterImpl{
-		informer: informer,
+		informer:      informer,
+		serviceLister: serviceLister,
 	}
 }
 
 type customResourceInterpreterImpl struct {
-	informer genericmanager.SingleClusterInformerManager
+	informer      genericmanager.SingleClusterInformerManager
+	serviceLister corev1.ServiceLister
 
 	customizedInterpreter   *customizedinterpreter.CustomizedInterpreter
 	defaultInterpreter      *defaultinterpreter.DefaultInterpreter
@@ -68,7 +71,7 @@ type customResourceInterpreterImpl struct {
 func (i *customResourceInterpreterImpl) Start(ctx context.Context) (err error) {
 	klog.Infof("Starting custom resource interpreter.")
 
-	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.informer)
+	i.customizedInterpreter, err = customizedinterpreter.NewCustomizedInterpreter(i.informer, i.serviceLister)
 	if err != nil {
 		return
 	}
