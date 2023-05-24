@@ -70,6 +70,11 @@ type DependenciesDistributor struct {
 	RESTMapper          meta.RESTMapper
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
 
+	// ConcurrentDependenciesDistributorBindingSyncs is the number of bindings that are allowed to sync concurrently.
+	ConcurrentDependenciesDistributorBindingSyncs int
+	// ConcurrentDependenciesDistributorResourceSyncs is the number of resources that are allowed to sync concurrently.
+	ConcurrentDependenciesDistributorResourceSyncs int
+
 	// bindingReconcileWorker maintains a rate limited queue which used to store ResourceBinding's key and
 	// a reconcile function to consume the items in queue.
 	bindingReconcileWorker util.AsyncWorker
@@ -84,13 +89,13 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	d.stopCh = ctx.Done()
 
 	bindingWorkerOptions := util.Options{
-		Name:          "resourceBinding reconciler",
+		Name:          "dependencies distributor resourceBinding reconciler",
 		KeyFunc:       detector.ClusterWideKeyFunc,
 		ReconcileFunc: d.ReconcileResourceBinding,
 	}
 	// setup binding reconcile worker
 	d.bindingReconcileWorker = util.NewAsyncWorker(bindingWorkerOptions)
-	d.bindingReconcileWorker.Run(2, d.stopCh)
+	d.bindingReconcileWorker.Run(d.ConcurrentDependenciesDistributorBindingSyncs, d.stopCh)
 
 	// watch and enqueue ResourceBinding changes.
 	resourceBindingGVR := schema.GroupVersionResource{
@@ -103,13 +108,13 @@ func (d *DependenciesDistributor) Start(ctx context.Context) error {
 	d.InformerManager.ForResource(resourceBindingGVR, bindingHandler)
 	d.resourceBindingLister = d.InformerManager.Lister(resourceBindingGVR)
 	resourceWorkerOptions := util.Options{
-		Name:          "resource detector",
+		Name:          "dependencies distributor resource detector",
 		KeyFunc:       detector.ClusterWideKeyFunc,
 		ReconcileFunc: d.Reconcile,
 	}
 	d.EventHandler = fedinformer.NewHandlerOnEvents(d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.Processor = util.NewAsyncWorker(resourceWorkerOptions)
-	d.Processor.Run(2, d.stopCh)
+	d.Processor.Run(d.ConcurrentDependenciesDistributorResourceSyncs, d.stopCh)
 	go d.discoverResources(30 * time.Second)
 
 	<-d.stopCh
