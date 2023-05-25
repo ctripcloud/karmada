@@ -30,7 +30,7 @@ type ResourceInterpreter interface {
 	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
 
 	// ReviseReplica revises the replica of the given object.
-	ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
+	ReviseReplica(object *unstructured.Unstructured, replica int64, cluster string) (*unstructured.Unstructured, error)
 
 	// Retain returns the objects that based on the "desired" object but with values retained from the "observed" object.
 	Retain(desired *unstructured.Unstructured, observed *unstructured.Unstructured) (retained *unstructured.Unstructured, err error)
@@ -120,7 +120,8 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 }
 
 // ReviseReplica revises the replica of the given object.
-func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
+func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstructured, replica int64, cluster string) (*unstructured.Unstructured, error) {
+	// We only support cluster info in webhook now.
 	obj, hookEnabled, err := i.configurableInterpreter.ReviseReplica(object, replica)
 	if err != nil {
 		return nil, err
@@ -134,6 +135,7 @@ func (i *customResourceInterpreterImpl) ReviseReplica(object *unstructured.Unstr
 		Operation:   configv1alpha1.InterpreterOperationReviseReplica,
 		Object:      object,
 		ReplicasSet: int32(replica),
+		Cluster:     cluster,
 	})
 	if err != nil {
 		return nil, err

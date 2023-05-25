@@ -1601,6 +1601,13 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterRequest(ref common.Refer
 							},
 						},
 					},
+					"cluster": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Cluster is the target cluster the object would be applied to.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"uid", "kind", "name", "operation"},
 			},
