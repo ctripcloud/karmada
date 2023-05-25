@@ -91,7 +91,7 @@ func ensureWork(
 
 		if hasScheduledReplica {
 			if resourceInterpreter.HookEnabled(clonedWorkload.GroupVersionKind(), configv1alpha1.InterpreterOperationReviseReplica) {
-				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name])
+				clonedWorkload, err = resourceInterpreter.ReviseReplica(clonedWorkload, desireReplicaInfos[targetCluster.Name], targetCluster.Name)
 				if err != nil {
 					klog.Errorf("Failed to revise replica for %s/%s/%s in cluster %s, err is: %v",
 						workload.GetKind(), workload.GetNamespace(), workload.GetName(), targetCluster.Name, err)
@@ -161,11 +161,12 @@ func mergeTargetClusters(targetClusters []workv1alpha2.TargetCluster, requiredBy
 	return targetClusters
 }
 
+// Always returns true because we need to trigger reviseReplica even if the replicas is 0.
 func getReplicaInfos(targetClusters []workv1alpha2.TargetCluster) (bool, map[string]int64) {
-	if helper.HasScheduledReplica(targetClusters) {
-		return true, transScheduleResultToMap(targetClusters)
-	}
-	return false, nil
+	// if helper.HasScheduledReplica(targetClusters) {
+	return true, transScheduleResultToMap(targetClusters)
+	// }
+	// return false, nil
 }
 
 func transScheduleResultToMap(scheduleResult []workv1alpha2.TargetCluster) map[string]int64 {
