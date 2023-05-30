@@ -145,3 +145,67 @@ release:
 	@make release-kubectl-karmada GOOS=linux GOARCH=arm64
 	@make release-kubectl-karmada GOOS=darwin GOARCH=amd64
 	@make release-kubectl-karmada GOOS=darwin GOARCH=arm64
+
+
+# For Ctrip using
+mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
+current_prj := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
+GOPROXY = http://goproxy.release.ctripcorp.com,direct
+GOREPO ?= hub.cloud.ctripcorp.com/golang/golang
+GOVERSION ?= 1.19.5
+GODOCKER ?= docker run --rm \
+		-e GOPROXY=${GOPROXY} \
+		-e GO111MODULE=on \
+		--network=host \
+		-v /etc/resolv.conf:/etc/resolv.conf:ro \
+		-v ${CURDIR}:/tmp/${current_prj}:rw \
+		-w /tmp/${current_prj} \
+		${GOREPO}:${GOVERSION} 
+
+CTRIP_TARGETS := karmada-aggregated-apiserver \
+					karmada-controller-manager \
+					karmada-scheduler \
+					karmada-webhook \
+					karmada-search 
+
+CTRIP_KARMADA_REGISTRY ?= "hub.cloud.ctripcorp.com/karmada"
+
+# Build binaries for Ctrip
+build_ctrip_cross_all: 
+	@for target in ${CTRIP_TARGETS}; do \
+		BUILD_PLATFORMS="linux/amd64,linux/arm64" hack/build.sh $$target; \
+	done
+
+build_ctrip_in_docker:
+	$(GODOCKER) sh -c "git config --global --add safe.directory /tmp/karmada; \
+	make build_ctrip_cross_all"
+
+# Make inages for Ctrip
+image_ctrip_cross_all: 
+	@docker buildx use docker-container || \
+		docker buildx create \
+			--name docker-container \
+			--driver docker-container \
+			--driver-opt image=hub.cloud.ctripcorp.com/moby/buildkit:buildx-stable-1-ctrip \
+			--use
+	@for target in ${CTRIP_TARGETS}; do \
+		BUILD_PLATFORMS=linux/amd64,linux/arm64 \
+		VERSION=${VERSION} \
+		REGISTRY=${CTRIP_KARMADA_REGISTRY} \
+		OUTPUT_TYPE=registry \
+		hack/docker.sh $$target; \
+	done
+	@docker buildx prune -f || echo "no buildx cache needs cleaning"
+
+.PHONY: info
+info:
+	@echo "targets: [${CTRIP_TARGETS}]"
+	@echo "registry: ${CTRIP_KARMADA_REGISTRY}"
+	@echo "version: ${VERSION}"
+
+# Test and verify for Ctrip
+test_ctrip_in_docker:
+	@$(GODOCKER) sh -c "make test"
+
+verify_ctrip_in_docker:
+	@$(GODOCKER) sh -c "make verify"
