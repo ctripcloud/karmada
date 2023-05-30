@@ -1,0 +1,88 @@
+variables:
+  RUNNER_IMAGE: hub.cloud.ctripcorp.com/devops/centos7.9-docker-19.03.4:0.0.2
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  IMAGE_REGISTRY: hub.cloud.ctripcorp.com
+
+.dind-service: &dind-service
+  - alias: docker
+    name: hub.cloud.ctripcorp.com/devops/docker:19.03.4-dind-trip-0.0.1
+    command:
+      - --storage-driver=overlay2
+      - --insecure-registry=hub.cloud.ctripcorp.com
+
+stages:
+  - TestAndVerify
+  - BuildBinaries
+  - MakeImages
+
+test:
+  stage: TestAndVerify
+  image: $RUNNER_IMAGE
+  services:
+    *dind-service
+  artifacts:
+    reports:
+      cobertura: cover.xml
+      coverage_html: cover.zip
+  tags: 
+    - official
+  script:
+    - make test_ctrip_in_docker
+  only:
+    - pushes
+    - merge_requests
+  except:
+    - tags
+
+verify:
+  stage: TestAndVerify
+  image: $RUNNER_IMAGE
+  services:
+    *dind-service
+  artifacts:
+    reports:
+      cobertura: cover.xml
+      coverage_html: cover.zip
+  tags: 
+    - official
+  script:
+    - make verify_ctrip_in_docker
+  only:
+    - pushes
+    - merge_requests
+  except:
+    - tags
+
+build cross binaries:
+  stage: BuildBinaries
+  image: $RUNNER_IMAGE
+  services:
+    *dind-service
+  tags:
+    - official
+  script:
+    - make build_ctrip_in_docker
+  only:
+    - merge_requests
+    - tags
+  artifacts:
+    paths:
+      - _output
+
+build images:
+  stage: MakeImages
+  image: $RUNNER_IMAGE
+  services:
+    *dind-service
+  tags:
+    - official
+  only:
+    - tags
+  script:
+    - make info
+    - docker login -u $CI_HUB_USERNAME -p $CI_HUB_PASSWORD $IMAGE_REGISTRY
+    - make image_ctrip_cross_all
+    - make clean
+  dependencies:
+    - build cross binaries

@@ -1,8 +1,10 @@
-FROM alpine:3.17.1
+FROM hub.cloud.ctripcorp.com/karrier/alpine:3.12.7
 
 ARG BINARY
 ARG TARGETPLATFORM
 
-RUN apk add --no-cache ca-certificates
+RUN mkdir -p /usr/local/bin
 
-COPY ${TARGETPLATFORM}/${BINARY} /bin/${BINARY}
+COPY ${TARGETPLATFORM}/${BINARY} /usr/local/bin/${BINARY}
+
+ENTRYPOINT [ "/usr/local/bin/${BINARY}" ]
