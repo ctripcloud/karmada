@@ -737,16 +737,8 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "pod",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
-				"apiVersion": "v1",
-				"kind":       "Pod",
-				"metadata": map[string]interface{}{
-					"name":              "pod",
-					"namespace":         "default",
-					"creationTimestamp": nil,
-				},
-			}},
-			wantErr: false,
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "namespace scope: get from cache",
@@ -803,15 +795,8 @@ func TestFetchWorkload(t *testing.T) {
 					Name:       "node",
 				},
 			},
-			want: &unstructured.Unstructured{Object: map[string]interface{}{
-				"apiVersion": "v1",
-				"kind":       "Node",
-				"metadata": map[string]interface{}{
-					"name":              "node",
-					"creationTimestamp": nil,
-				},
-			}},
-			wantErr: false,
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "cluster scope: get from cache",

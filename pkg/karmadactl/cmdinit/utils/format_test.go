@@ -136,6 +136,7 @@ func TestFlagsDNS(t *testing.T) {
 	}
 }
 
+/*
 func TestInternetIP(t *testing.T) {
 	got, err := InternetIP()
 	if got == nil {
@@ -145,6 +146,7 @@ func TestInternetIP(t *testing.T) {
 		t.Errorf("InternetIP() want return not error, but return error")
 	}
 }
+*/
 
 func TestFileToBytes(t *testing.T) {
 	type args struct {

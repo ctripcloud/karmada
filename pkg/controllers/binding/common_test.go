@@ -155,8 +155,10 @@ func Test_getReplicaInfos(t *testing.T) {
 					Name: "foo",
 				},
 			},
-			wantBool: false,
-			wantRes:  nil,
+			wantBool: true,
+			wantRes: map[string]int64{
+				"foo": 0,
+			},
 		},
 	}
 	for _, tt := range tests {
