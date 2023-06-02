@@ -15,7 +15,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/client-go/dynamic"
@@ -25,8 +24,8 @@ import (
 
 // Store is the cache for resources from multiple member clusters
 type Store interface {
-	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error
-	HasResource(resource schema.GroupVersionResource) bool
+	UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error
+	HasResource(resource schema.GroupVersionResource, namespace string) bool
 	GetResourceFromCache(ctx context.Context, gvr schema.GroupVersionResource, namespace, name string) (runtime.Object, string, error)
 	Stop()
 
@@ -39,7 +38,7 @@ type Store interface {
 type MultiClusterCache struct {
 	lock            sync.RWMutex
 	cache           map[string]*clusterCache
-	cachedResources map[schema.GroupVersionResource]struct{}
+	cachedResources map[schema.GroupVersionResource]*MultiNamespace
 	restMapper      meta.RESTMapper
 	// newClientFunc returns a dynamic client for member cluster apiserver
 	newClientFunc func(string) (dynamic.Interface, error)
@@ -53,12 +52,12 @@ func NewMultiClusterCache(newClientFunc func(string) (dynamic.Interface, error),
 		restMapper:      restMapper,
 		newClientFunc:   newClientFunc,
 		cache:           map[string]*clusterCache{},
-		cachedResources: map[schema.GroupVersionResource]struct{}{},
+		cachedResources: map[schema.GroupVersionResource]*MultiNamespace{},
 	}
 }
 
 // UpdateCache update cache for multi clusters
-func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]struct{}) error {
+func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema.GroupVersionResource]*MultiNamespace) error {
 	if klog.V(3).Enabled() {
 		start := time.Now()
 		defer func() {
@@ -70,12 +69,8 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	defer c.lock.Unlock()
 
 	// remove non-exist clusters
-	newClusterNames := sets.NewString()
-	for clusterName := range resourcesByCluster {
-		newClusterNames.Insert(clusterName)
-	}
 	for clusterName := range c.cache {
-		if !newClusterNames.Has(clusterName) {
+		if _, exist := resourcesByCluster[clusterName]; !exist {
 			klog.Infof("Remove cache for cluster %s", clusterName)
 			c.cache[clusterName].stop()
 			delete(c.cache, clusterName)
@@ -97,10 +92,10 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 	}
 
 	// update cachedResource
-	newCachedResources := make(map[schema.GroupVersionResource]struct{}, len(c.cachedResources))
+	newCachedResources := make(map[schema.GroupVersionResource]*MultiNamespace, len(c.cachedResources))
 	for _, resources := range resourcesByCluster {
-		for resource := range resources {
-			newCachedResources[resource] = struct{}{}
+		for resource, ns := range resources {
+			newCachedResources[resource] = ns
 		}
 	}
 	for resource := range c.cachedResources {
@@ -108,10 +103,8 @@ func (c *MultiClusterCache) UpdateCache(resourcesByCluster map[string]map[schema
 			delete(c.cachedResources, resource)
 		}
 	}
-	for resource := range newCachedResources {
-		if _, exist := c.cachedResources[resource]; !exist {
-			c.cachedResources[resource] = struct{}{}
-		}
+	for resource, ns := range newCachedResources {
+		c.cachedResources[resource] = ns
 	}
 	return nil
 }
@@ -127,11 +120,13 @@ func (c *MultiClusterCache) Stop() {
 }
 
 // HasResource return whether resource is cached.
-func (c *MultiClusterCache) HasResource(resource schema.GroupVersionResource) bool {
+func (c *MultiClusterCache) HasResource(resource schema.GroupVersionResource, namespace string) bool {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
-	_, ok := c.cachedResources[resource]
-	return ok
+	if nsScope, ok := c.cachedResources[resource]; ok {
+		return nsScope.Contains(namespace)
+	}
+	return false
 }
 
 // GetResourceFromCache returns which cluster the resource belong to.
