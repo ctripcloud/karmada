@@ -180,7 +180,7 @@ build_ctrip_in_docker:
 	$(GODOCKER) sh -c "git config --global --add safe.directory /tmp/karmada; \
 	make build_ctrip_cross_all"
 
-# Make inages for Ctrip
+# Make images for Ctrip
 image_ctrip_cross_all: 
 	@docker buildx use docker-container || \
 		docker buildx create \
