@@ -410,7 +410,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
-			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
@@ -492,7 +492,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				}
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
-				bindingCopy.OwnerReferences = binding.OwnerReferences
+				bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 				bindingCopy.Finalizers = binding.Finalizers
 				bindingCopy.Spec.Resource = binding.Spec.Resource
 				bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
@@ -543,7 +543,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
-			bindingCopy.OwnerReferences = binding.OwnerReferences
+			bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
 			bindingCopy.Spec.ReplicaRequirements = binding.Spec.ReplicaRequirements
