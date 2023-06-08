@@ -1700,12 +1700,26 @@ func schema_pkg_apis_config_v1alpha1_ResourceInterpreterResponse(ref common.Refe
 							Format:      "",
 						},
 					},
+					"TargetClusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TargetClusters represents the customized scheduling result.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]interface{}{},
+										Ref:     ref("github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"uid", "successful"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
+			"github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.DependentObjectReference", "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1.RequestStatus", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.ReplicaRequirements", "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2.TargetCluster", "k8s.io/apimachinery/pkg/runtime.RawExtension"},
 	}
 }
 

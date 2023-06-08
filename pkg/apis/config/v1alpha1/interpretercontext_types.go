@@ -117,6 +117,10 @@ type ResourceInterpreterResponse struct {
 	// Healthy represents the referencing object's healthy status.
 	// +optional
 	Healthy *bool `json:"healthy,omitempty"`
+
+	// TargetClusters represents the customized scheduling result.
+	// +optional
+	TargetClusters *[]workv1alpha2.TargetCluster
 }
 
 // RequestStatus holds the status of a request.

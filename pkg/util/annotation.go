@@ -10,6 +10,18 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 )
 
+// DedupeAndMergeAnnotations merges the new annotations into exist annotations.
+func DedupeAndMergeAnnotations(existAnnotation, newAnnotation map[string]string) map[string]string {
+	if existAnnotation == nil {
+		return newAnnotation
+	}
+
+	for k, v := range newAnnotation {
+		existAnnotation[k] = v
+	}
+	return existAnnotation
+}
+
 // MergeAnnotation adds annotation for the given object.
 func MergeAnnotation(obj *unstructured.Unstructured, annotationKey string, annotationValue string) {
 	objectAnnotation := obj.GetAnnotations()
