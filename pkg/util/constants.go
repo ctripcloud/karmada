@@ -40,6 +40,10 @@ const (
 	// It is intended to set on Work objects to record applied overrides.
 	// The overrides items should be sorted alphabetically in ascending order by ClusterOverridePolicy's name.
 	AppliedClusterOverrides = "policy.karmada.io/applied-cluster-overrides"
+
+	CustomizedSchedulingAnnotation = "binding.karmada.io/customized-scheduling"
+
+	CustomizedSchedulingEnabled = "enabled"
 )
 
 // Define finalizers used by karmada system.

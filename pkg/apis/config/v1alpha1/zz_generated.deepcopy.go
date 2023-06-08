@@ -380,6 +380,15 @@ func (in *ResourceInterpreterResponse) DeepCopyInto(out *ResourceInterpreterResp
 		*out = new(bool)
 		**out = **in
 	}
+	if in.TargetClusters != nil {
+		in, out := &in.TargetClusters, &out.TargetClusters
+		*out = new([]v1alpha2.TargetCluster)
+		if **in != nil {
+			in, out := *in, *out
+			*out = make([]v1alpha2.TargetCluster, len(*in))
+			copy(*out, *in)
+		}
+	}
 	return
 }
 

@@ -97,6 +97,7 @@ func verifyResourceInterpreterContext(operation configv1alpha1.InterpreterOperat
 		}
 		res.Replicas = *response.Replicas
 		res.ReplicaRequirements = response.ReplicaRequirements
+		res.TargetClusters = response.TargetClusters
 		return res, nil
 	case configv1alpha1.InterpreterOperationInterpretDependency:
 		res.Dependencies = response.Dependencies

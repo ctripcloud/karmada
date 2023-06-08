@@ -2,6 +2,7 @@ package detector
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"time"
@@ -417,6 +418,13 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 			bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
+			if annotations := bindingCopy.Annotations; annotations != nil {
+				delete(annotations, util.CustomizedSchedulingAnnotation)
+			}
+			if _, exist := binding.Annotations[util.CustomizedSchedulingAnnotation]; exist {
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+				bindingCopy.Spec.Clusters = binding.Spec.Clusters
+			}
 			return nil
 		})
 		if err != nil {
@@ -492,6 +500,13 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 				bindingCopy.Spec.PropagateDeps = binding.Spec.PropagateDeps
 				bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 				bindingCopy.Spec.Placement = binding.Spec.Placement
+				if annotations := bindingCopy.Annotations; annotations != nil {
+					delete(annotations, util.CustomizedSchedulingAnnotation)
+				}
+				if _, exist := binding.Annotations[util.CustomizedSchedulingAnnotation]; exist {
+					bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+					bindingCopy.Spec.Clusters = binding.Spec.Clusters
+				}
 				return nil
 			})
 			if err != nil {
@@ -535,6 +550,13 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			bindingCopy.Spec.Replicas = binding.Spec.Replicas
 			bindingCopy.Spec.SchedulerName = binding.Spec.SchedulerName
 			bindingCopy.Spec.Placement = binding.Spec.Placement
+			if annotations := bindingCopy.Annotations; annotations != nil {
+				delete(annotations, util.CustomizedSchedulingAnnotation)
+			}
+			if _, exist := binding.Annotations[util.CustomizedSchedulingAnnotation]; exist {
+				bindingCopy.Annotations = util.DedupeAndMergeAnnotations(bindingCopy.Annotations, binding.Annotations)
+				bindingCopy.Spec.Clusters = binding.Spec.Clusters
+			}
 			return nil
 		})
 		if err != nil {
@@ -645,13 +667,39 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 	}
 
 	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		replicas, replicaRequirements, customized, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
-			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
+			klog.Errorf("Failed to customize replicas for %s(%s/%s), %v", object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
 			return nil, err
 		}
 		propagationBinding.Spec.Replicas = replicas
 		propagationBinding.Spec.ReplicaRequirements = replicaRequirements
+
+		// Customized represents the customized scheduling result to take place of that from scheduler, defaults to nil.
+		// If required, the non-nil `customized` should be calculated in webhook interpreter.
+		if customized != nil {
+			if declared := util.GetSumOfReplicas(*customized); declared != replicas {
+				klog.Errorf("Replicas declared in customized scheduling result(%d) does not match that declared in workload(%d) for %s(%s/%s), reschedule by scheduler.",
+					declared, replicas, object.GroupVersionKind(), object.GetNamespace(), object.GetName())
+				return propagationBinding, nil
+			}
+
+			placementBytes, err := json.Marshal(*propagationBinding.Spec.Placement)
+			if err != nil {
+				klog.Errorf("Failed to marshal binding placement for %s(%s/%s), reschedule by scheduler: %v.",
+					object.GroupVersionKind(), object.GetNamespace(), object.GetName(), err)
+				return propagationBinding, nil
+			}
+
+			annotations := map[string]string{
+				util.PolicyPlacementAnnotation:      string(placementBytes),
+				util.CustomizedSchedulingAnnotation: util.CustomizedSchedulingEnabled,
+			}
+
+			// We patch annotations to avoid rescheduling by karmada-scheduler.
+			propagationBinding.Annotations = annotations
+			propagationBinding.Spec.Clusters = *customized
+		}
 	}
 
 	return propagationBinding, nil
@@ -684,13 +732,39 @@ func (d *ResourceDetector) BuildClusterResourceBinding(object *unstructured.Unst
 	}
 
 	if d.ResourceInterpreter.HookEnabled(object.GroupVersionKind(), configv1alpha1.InterpreterOperationInterpretReplica) {
-		replicas, replicaRequirements, err := d.ResourceInterpreter.GetReplicas(object)
+		replicas, replicaRequirements, customized, err := d.ResourceInterpreter.GetReplicas(object)
 		if err != nil {
 			klog.Errorf("Failed to customize replicas for %s(%s), %v", object.GroupVersionKind(), object.GetName(), err)
 			return nil, err
 		}
 		binding.Spec.Replicas = replicas
 		binding.Spec.ReplicaRequirements = replicaRequirements
+
+		// Customized represents the customized scheduling result to take place of that from scheduler, defaults to nil.
+		// If required, the non-nil `customized` should be calculated in webhook interpreter.
+		if customized != nil {
+			if declared := util.GetSumOfReplicas(*customized); declared != replicas {
+				klog.Errorf("Replicas declared in customized scheduling result(%d) does not match that declared in workload(%d) for %s(%s), reschedule by scheduler.",
+					declared, replicas, object.GroupVersionKind(), object.GetName())
+				return binding, nil
+			}
+
+			placementBytes, err := json.Marshal(*binding.Spec.Placement)
+			if err != nil {
+				klog.Errorf("Failed to marshal binding placement for %s(%s), reschedule by scheduler: %v.",
+					object.GroupVersionKind(), object.GetName(), err)
+				return binding, nil
+			}
+
+			annotations := map[string]string{
+				util.PolicyPlacementAnnotation:      string(placementBytes),
+				util.CustomizedSchedulingAnnotation: util.CustomizedSchedulingEnabled,
+			}
+
+			// We patch annotations to avoid rescheduling by karmada-scheduler.
+			binding.Annotations = annotations
+			binding.Spec.Clusters = *customized
+		}
 	}
 
 	return binding, nil

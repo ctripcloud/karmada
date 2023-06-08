@@ -27,7 +27,8 @@ type ResourceInterpreter interface {
 	HookEnabled(objGVK schema.GroupVersionKind, operationType configv1alpha1.InterpreterOperation) bool
 
 	// GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, err error)
+	// Customized represents the customized scheduling result, could be declared only in webhook interpreter now.
+	GetReplicas(object *unstructured.Unstructured) (replica int32, replicaRequires *workv1alpha2.ReplicaRequirements, customized *[]workv1alpha2.TargetCluster, err error)
 
 	// ReviseReplica revises the replica of the given object.
 	ReviseReplica(object *unstructured.Unstructured, replica int64, cluster string) (*unstructured.Unstructured, error)
@@ -93,7 +94,8 @@ func (i *customResourceInterpreterImpl) HookEnabled(objGVK schema.GroupVersionKi
 }
 
 // GetReplicas returns the desired replicas of the object as well as the requirements of each replica.
-func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, err error) {
+// Customized represents the customized scheduling result, could be declared only in webhook interpreter now.
+func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstructured) (replica int32, requires *workv1alpha2.ReplicaRequirements, customized *[]workv1alpha2.TargetCluster, err error) {
 	var hookEnabled bool
 
 	replica, requires, hookEnabled, err = i.configurableInterpreter.GetReplicas(object)
@@ -104,7 +106,7 @@ func (i *customResourceInterpreterImpl) GetReplicas(object *unstructured.Unstruc
 		return
 	}
 
-	replica, requires, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &webhook.RequestAttributes{
+	replica, requires, customized, hookEnabled, err = i.customizedInterpreter.GetReplicas(context.TODO(), &webhook.RequestAttributes{
 		Operation: configv1alpha1.InterpreterOperationInterpretReplica,
 		Object:    object,
 	})
