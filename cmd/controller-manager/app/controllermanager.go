@@ -115,7 +115,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	if err != nil {
 		panic(err)
 	}
-	config.QPS, config.Burst = opts.KubeAPIQPS, opts.KubeAPIBurst
+	config.QPS, config.Burst, config.Timeout = opts.KubeAPIQPS, opts.KubeAPIBurst, opts.KubeAPITimeout.Duration
 	controllerManager, err := controllerruntime.NewManager(config, controllerruntime.Options{
 		Logger:                     klog.Background(),
 		Scheme:                     gclient.NewSchema(),
