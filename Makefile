@@ -150,17 +150,19 @@ release:
 # For Ctrip using
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_prj := $(notdir $(patsubst %/,%,$(dir $(mkfile_path))))
-GOPROXY = http://goproxy.release.ctripcorp.com,direct
+GOPROXY = http://goproxycn.release.ctripcorp.com,http://goproxy.release.ctripcorp.com,direct
+GOSUMDB = off
 GOREPO ?= hub.cloud.ctripcorp.com/golang/golang
 GOVERSION ?= 1.19.5
 GODOCKER ?= docker run --rm \
 		-e GOPROXY=${GOPROXY} \
+		-e GOSUMDB=${GOSUMDB} \
 		-e GO111MODULE=on \
 		--network=host \
 		-v /etc/resolv.conf:/etc/resolv.conf:ro \
 		-v ${CURDIR}:/tmp/${current_prj}:rw \
 		-w /tmp/${current_prj} \
-		${GOREPO}:${GOVERSION} 
+		${GOREPO}:${GOVERSION}
 
 CTRIP_TARGETS := karmada-aggregated-apiserver \
 					karmada-controller-manager \
