@@ -22,6 +22,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler-estimator/app/options"
 	"github.com/karmada-io/karmada/pkg/estimator/server"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -70,6 +71,7 @@ provides the scheduler with more accurate cluster resource information.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler-estimator"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -82,6 +84,15 @@ provides the scheduler with more accurate cluster resource information.`,
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-scheduler-estimator version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
+
 	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	profileflag.ListenAndServe(opts.ProfileOpts)

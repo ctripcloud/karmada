@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/conversion"
 
 	"github.com/karmada-io/karmada/cmd/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -69,6 +70,7 @@ Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-webhook"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -82,6 +84,14 @@ Karmada resources including 'PropagationPolicy', 'OverridePolicy' and so on.`,
 // Run runs the webhook server with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-webhook version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 

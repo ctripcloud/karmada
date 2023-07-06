@@ -25,6 +25,7 @@ import (
 
 	"github.com/karmada-io/karmada/cmd/scheduler/app/options"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/scheduler"
 	"github.com/karmada-io/karmada/pkg/scheduler/framework/runtime"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -95,6 +96,7 @@ the most suitable cluster.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-scheduler"))
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -107,6 +109,15 @@ the most suitable cluster.`,
 
 func run(opts *options.Options, stopChan <-chan struct{}, registryOptions ...Option) error {
 	klog.Infof("karmada-scheduler version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
+
 	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	profileflag.ListenAndServe(opts.ProfileOpts)

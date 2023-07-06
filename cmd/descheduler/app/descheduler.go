@@ -25,6 +25,7 @@ import (
 	"github.com/karmada-io/karmada/cmd/descheduler/app/options"
 	"github.com/karmada-io/karmada/pkg/descheduler"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
@@ -82,6 +83,7 @@ karmada-scheduler-estimator to get replica status.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-descheduler"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -95,6 +97,15 @@ karmada-scheduler-estimator to get replica status.`,
 func run(opts *options.Options, stopChan <-chan struct{}) error {
 	klog.Infof("karmada-descheduler version: %s", version.Get())
 	klog.Infof("Please make sure the karmada-scheduler-estimator of all member clusters has been deployed")
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
+
 	go serveHealthzAndMetrics(net.JoinHostPort(opts.BindAddress, strconv.Itoa(opts.SecurePort)))
 
 	profileflag.ListenAndServe(opts.ProfileOpts)

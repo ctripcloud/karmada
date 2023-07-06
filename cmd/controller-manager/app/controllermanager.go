@@ -45,6 +45,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/detector"
 	"github.com/karmada-io/karmada/pkg/features"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -95,6 +96,7 @@ to create regular Kubernetes resources.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-controller-manager"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -108,6 +110,14 @@ to create regular Kubernetes resources.`,
 // Run runs the controller-manager with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-controller-manager version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 
