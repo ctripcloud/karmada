@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/controllers/status"
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/apiclient"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
@@ -88,6 +89,7 @@ cluster and manifests to the Karmada control plane.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-agent"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -114,6 +116,14 @@ func init() {
 
 func run(ctx context.Context, opts *options.Options) error {
 	klog.Infof("karmada-agent version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	profileflag.ListenAndServe(opts.ProfileOpts)
 

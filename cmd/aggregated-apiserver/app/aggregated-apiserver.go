@@ -8,6 +8,7 @@ import (
 	"k8s.io/component-base/term"
 
 	"github.com/karmada-io/karmada/cmd/aggregated-apiserver/app/options"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/version/sharedcommand"
@@ -44,6 +45,7 @@ allowing users to access member clusters from the control plane directly.`,
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-aggregated-apiserver"))
 	cmd.Flags().AddFlagSet(genericFlagSet)

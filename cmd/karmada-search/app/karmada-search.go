@@ -26,6 +26,7 @@ import (
 	karmadaclientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informerfactory "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/search"
 	"github.com/karmada-io/karmada/pkg/search/proxy"
 	"github.com/karmada-io/karmada/pkg/search/proxy/framework/runtime"
@@ -70,6 +71,7 @@ capabilities such as global search and resource proxy in a multi-cloud environme
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-search"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -92,6 +94,14 @@ func WithPlugin(factory runtime.PluginFactory) Option {
 // `run` runs the karmada-search with options. This should never exit.
 func run(ctx context.Context, o *options.Options, registryOptions ...Option) error {
 	klog.Infof("karmada-search version: %s", version.Get())
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	profileflag.ListenAndServe(o.ProfileOpts)
 

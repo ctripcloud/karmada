@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/karmada-io/karmada/examples/customresourceinterpreter/webhook/app/options"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
@@ -51,6 +52,7 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.AddCommand(sharedcommand.NewCmdVersion("karmada-interpreter-webhook-example"))
 	cmd.Flags().AddFlagSet(genericFlagSet)
@@ -63,6 +65,14 @@ func NewWebhookCommand(ctx context.Context) *cobra.Command {
 
 // Run runs the webhook server with options. This should never exit.
 func Run(ctx context.Context, opts *options.Options) error {
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
+
 	config, err := controllerruntime.GetConfig()
 	if err != nil {
 		panic(err)

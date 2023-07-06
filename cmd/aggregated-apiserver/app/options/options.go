@@ -30,6 +30,7 @@ import (
 	clientset "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	informers "github.com/karmada-io/karmada/pkg/generated/informers/externalversions"
 	generatedopenapi "github.com/karmada-io/karmada/pkg/generated/openapi"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli/profileflag"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 	"github.com/karmada-io/karmada/pkg/version"
@@ -83,6 +84,14 @@ func (o *Options) Run(ctx context.Context) error {
 	klog.Infof("karmada-aggregated-apiserver version: %s", version.Get())
 
 	profileflag.ListenAndServe(o.ProfileOpts)
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	config, err := o.Config()
 	if err != nil {

@@ -23,6 +23,7 @@ import (
 	ctrlctx "github.com/karmada-io/karmada/operator/pkg/controller/context"
 	"github.com/karmada-io/karmada/operator/pkg/controller/karmada"
 	"github.com/karmada-io/karmada/operator/pkg/scheme"
+	"github.com/karmada-io/karmada/pkg/log"
 	"github.com/karmada-io/karmada/pkg/sharedcli"
 	"github.com/karmada-io/karmada/pkg/sharedcli/klogflag"
 )
@@ -66,6 +67,7 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 	// Set klog flags
 	logsFlagSet := fss.FlagSet("logs")
 	klogflag.Add(logsFlagSet)
+	log.AddFlags(logsFlagSet)
 
 	cmd.Flags().AddFlagSet(genericFlagSet)
 	cmd.Flags().AddFlagSet(logsFlagSet)
@@ -78,6 +80,14 @@ func NewOperatorCommand(ctx context.Context) *cobra.Command {
 // Run runs the karmada-operator. This should never exit.
 func Run(ctx context.Context, o *options.Options) error {
 	klog.InfoS("Golang settings", "GOGC", os.Getenv("GOGC"), "GOMAXPROCS", os.Getenv("GOMAXPROCS"), "GOTRACEBACK", os.Getenv("GOTRACEBACK"))
+
+	if log.UseFileLogger {
+		err := log.InitLogger()
+		if err != nil {
+			return err
+		}
+		defer log.Final()
+	}
 
 	manager, err := createControllerManager(ctx, o)
 	if err != nil {
