@@ -116,7 +116,7 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work, group string) (controllerruntime.Result, error) {
 	start := time.Now()
 	err := c.syncToClusters(clusterName, work, group)
-	metrics.ObserveSyncWorkloadLatency(work.ObjectMeta, err, start)
+	metrics.ObserveSyncWorkloadLatency(err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
 		klog.Errorf("[Group %s] %s", group, msg)
