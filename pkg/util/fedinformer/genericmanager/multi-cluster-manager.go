@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -93,6 +94,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dyna
 		return manager
 	}
 
+	klog.Infof("building generic informer manager for cluster: %s", cluster)
 	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh)
 	m.managers[cluster] = manager
 	return manager
