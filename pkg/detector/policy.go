@@ -25,18 +25,21 @@ import (
 func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) error {
 	// 1. Check if the object has been claimed by a PropagationPolicy,
 	// if so, just apply it.
+
+	group := util.AddStepForObject("detector", object)
+
 	policyLabels := object.GetLabels()
 	claimedNamespace := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNamespaceLabel)
 	claimedName := util.GetLabelValue(policyLabels, policyv1alpha1.PropagationPolicyNameLabel)
 	if claimedNamespace != "" && claimedName != "" {
-		return d.getAndApplyPolicy(object, objectKey, claimedNamespace, claimedName)
+		return d.getAndApplyPolicy(object, objectKey, claimedNamespace, claimedName, group)
 	}
 
 	// 2. Check if the object has been claimed by a ClusterPropagationPolicy,
 	// if so, just apply it.
 	claimedName = util.GetLabelValue(policyLabels, policyv1alpha1.ClusterPropagationPolicyLabel)
 	if claimedName != "" {
-		return d.getAndApplyClusterPolicy(object, objectKey, claimedName)
+		return d.getAndApplyClusterPolicy(object, objectKey, claimedName, group)
 	}
 
 	// 3. attempt to match policy in its namespace.
@@ -54,7 +57,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 		}
 		d.RemoveWaiting(objectKey)
 		metrics.ObserveFindMatchedPolicyLatency(object, start)
-		return d.ApplyPolicy(object, objectKey, propagationPolicy)
+		return d.ApplyPolicy(object, objectKey, propagationPolicy, group)
 	}
 
 	// 4. reaching here means there is no appropriate PropagationPolicy, attempt to match a ClusterPropagationPolicy.
@@ -71,7 +74,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 		}
 		d.RemoveWaiting(objectKey)
 		metrics.ObserveFindMatchedPolicyLatency(object, start)
-		return d.ApplyClusterPolicy(object, objectKey, clusterPolicy)
+		return d.ApplyClusterPolicy(object, objectKey, clusterPolicy, group)
 	}
 
 	if d.isWaiting(objectKey) {
@@ -86,7 +89,7 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured, 
 	return fmt.Errorf("no matched propagation policy")
 }
 
-func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyNamespace, policyName string) error {
+func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyNamespace, policyName, group string) error {
 	policyObject, err := d.propagationPolicyLister.ByNamespace(policyNamespace).Get(policyName)
 	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
@@ -116,10 +119,10 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 		return fmt.Errorf("waiting for dependent overrides")
 	}
 
-	return d.ApplyPolicy(object, objectKey, matchedPropagationPolicy)
+	return d.ApplyPolicy(object, objectKey, matchedPropagationPolicy, group)
 }
 
-func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyName string) error {
+func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policyName, group string) error {
 	policyObject, err := d.clusterPropagationPolicyLister.Get(policyName)
 	if err != nil {
 		klog.Errorf("Failed to get claimed policy(%s),: %v", policyName, err)
@@ -149,7 +152,7 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 		return fmt.Errorf("waiting for dependent overrides")
 	}
 
-	return d.ApplyClusterPolicy(object, objectKey, matchedClusterPropagationPolicy)
+	return d.ApplyClusterPolicy(object, objectKey, matchedClusterPropagationPolicy, group)
 }
 
 func (d *ResourceDetector) cleanPPUnmatchedResourceBindings(policyNamespace, policyName string, selectors []policyv1alpha1.ResourceSelector) error {

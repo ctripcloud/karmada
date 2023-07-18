@@ -54,6 +54,7 @@ type KeyFunc func(obj interface{}) (QueueKey, error)
 type ReconcileFunc func(key QueueKey) error
 
 type asyncWorker struct {
+	name string
 	// keyFunc is the function that make keys for API objects.
 	keyFunc KeyFunc
 	// reconcileFunc is the function that process keys from the queue.
@@ -75,6 +76,7 @@ type Options struct {
 // NewAsyncWorker returns a asyncWorker which can process resource periodic.
 func NewAsyncWorker(opt Options) AsyncWorker {
 	return &asyncWorker{
+		name:          opt.Name,
 		keyFunc:       opt.KeyFunc,
 		reconcileFunc: opt.ReconcileFunc,
 		queue:         workqueue.NewNamedRateLimitingQueue(ratelimiterflag.DefaultControllerRateLimiter(opt.RateLimiterOptions), opt.Name),
@@ -99,6 +101,10 @@ func (w *asyncWorker) Add(item interface{}) {
 	if item == nil {
 		klog.Warningf("Ignore nil item from queue")
 		return
+	}
+
+	if w.name != "" {
+		klog.Infof("Add item(%+v) to %s queue.", item, w.name)
 	}
 
 	w.queue.Add(item)

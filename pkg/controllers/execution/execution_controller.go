@@ -53,7 +53,9 @@ type Controller struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling Work %s", req.NamespacedName.String())
+	group := util.AddStepForRequestObject("execution_controller", req, &workv1alpha1.Work{})
+
+	klog.V(4).Infof("[Group %s] Reconciling Work %s", group, req.NamespacedName.String())
 
 	work := &workv1alpha1.Work{}
 	if err := c.Client.Get(ctx, req.NamespacedName, work); err != nil {
@@ -97,7 +99,7 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 		return controllerruntime.Result{Requeue: true}, fmt.Errorf("cluster(%s) not ready", cluster.Name)
 	}
 
-	return c.syncWork(clusterName, work)
+	return c.syncWork(clusterName, work, group)
 }
 
 // SetupWithManager creates a controller and register to controller manager.
@@ -111,18 +113,18 @@ func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 		Complete(c)
 }
 
-func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work) (controllerruntime.Result, error) {
+func (c *Controller) syncWork(clusterName string, work *workv1alpha1.Work, group string) (controllerruntime.Result, error) {
 	start := time.Now()
-	err := c.syncToClusters(clusterName, work)
+	err := c.syncToClusters(clusterName, work, group)
 	metrics.ObserveSyncWorkloadLatency(work.ObjectMeta, err, start)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to sync work(%s) to cluster(%s): %v", work.Name, clusterName, err)
-		klog.Errorf(msg)
+		klog.Errorf("[Group %s] %s", group, msg)
 		c.EventRecorder.Event(work, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, msg)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	msg := fmt.Sprintf("Sync work (%s) to cluster(%s) successful.", work.Name, clusterName)
-	klog.V(4).Infof(msg)
+	klog.V(4).Infof("[Group %s] %s", group, msg)
 	c.EventRecorder.Event(work, corev1.EventTypeNormal, events.EventReasonSyncWorkloadSucceed, msg)
 	return controllerruntime.Result{}, nil
 }
@@ -183,7 +185,7 @@ func (c *Controller) removeFinalizer(work *workv1alpha1.Work) (controllerruntime
 }
 
 // syncToClusters ensures that the state of the given object is synchronized to member clusters.
-func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work) error {
+func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work, group string) error {
 	var errs []error
 	syncSucceedNum := 0
 	for _, manifest := range work.Spec.Workload.Manifests {
@@ -195,8 +197,8 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 			continue
 		}
 
-		if err = c.tryCreateOrUpdateWorkload(clusterName, workload); err != nil {
-			klog.Errorf("Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+		if err = c.tryCreateOrUpdateWorkload(clusterName, workload, group); err != nil {
+			klog.Errorf("[Group %s] Failed to create or update resource(%v/%v) in the given member cluster %s, err is %v", group, workload.GetNamespace(), workload.GetName(), clusterName, err)
 			c.eventf(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkloadFailed, "Failed to create or update resource(%s) in member cluster(%s): %v", klog.KObj(workload), clusterName, err)
 			errs = append(errs, err)
 			continue
@@ -208,24 +210,24 @@ func (c *Controller) syncToClusters(clusterName string, work *workv1alpha1.Work)
 	if len(errs) > 0 {
 		total := len(work.Spec.Workload.Manifests)
 		message := fmt.Sprintf("Failed to apply all manifests (%d/%d): %s", syncSucceedNum, total, errors.NewAggregate(errs).Error())
-		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message)
+		err := c.updateAppliedCondition(work, metav1.ConditionFalse, "AppliedFailed", message, group)
 		if err != nil {
-			klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+			klog.Errorf("[Group %s] Failed to update applied status for given work %v, namespace is %v, err is %v", group, work.Name, work.Namespace, err)
 			errs = append(errs, err)
 		}
 		return errors.NewAggregate(errs)
 	}
 
-	err := c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied")
+	err := c.updateAppliedCondition(work, metav1.ConditionTrue, "AppliedSuccessful", "Manifest has been successfully applied", group)
 	if err != nil {
-		klog.Errorf("Failed to update applied status for given work %v, namespace is %v, err is %v", work.Name, work.Namespace, err)
+		klog.Errorf("[Group %s] Failed to update applied status for given work %v, namespace is %v, err is %v", group, work.Name, work.Namespace, err)
 		return err
 	}
 
 	return nil
 }
 
-func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *unstructured.Unstructured) error {
+func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *unstructured.Unstructured, group string) error {
 	fedKey, err := keys.FederatedKeyFunc(clusterName, workload)
 	if err != nil {
 		klog.Errorf("Failed to get FederatedKey %s, error: %v", workload.GetName(), err)
@@ -235,27 +237,28 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 	clusterObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
-			klog.Errorf("Failed to get resource %v from member cluster, err is %v ", workload.GetName(), err)
+			klog.Errorf("[Group %s] Failed to get resource(%s) from member cluster, err is %v ", group, fedKey.String(), err)
 			return err
 		}
-		err = c.ObjectWatcher.Create(clusterName, workload)
+		err = c.ObjectWatcher.Create(clusterName, workload, group)
 		if err != nil {
-			klog.Errorf("Failed to create resource(%v/%v) in the given member cluster %s, err is %v", workload.GetNamespace(), workload.GetName(), clusterName, err)
+			klog.Errorf("[Group %s] Failed to create resource(%v/%v) in the given member cluster %s, err is %v", group, workload.GetNamespace(), workload.GetName(), clusterName, err)
 			return err
 		}
 		return nil
 	}
+	klog.Infof("[Group %s] Got resource(%s) from cache.", group, fedKey.String())
 
-	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj)
+	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj, group)
 	if err != nil {
-		klog.Errorf("Failed to update resource in the given member cluster %s, err is %v", clusterName, err)
+		klog.Errorf("[Group %s] Failed to update resource in the given member cluster %s, err is %v", group, clusterName, err)
 		return err
 	}
 	return nil
 }
 
 // updateAppliedCondition update the Applied condition for the given Work
-func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message string) error {
+func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status metav1.ConditionStatus, reason, message, group string) error {
 	newWorkAppliedCondition := metav1.Condition{
 		Type:               workv1alpha1.WorkApplied,
 		Status:             status,
@@ -264,18 +267,27 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		LastTransitionTime: metav1.Now(),
 	}
 
+	workOld := work.DeepCopy()
+	attempt := 0
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		attempt++
+		klog.Infof("[Group: %s] Attempt to create or update work %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
+			group, work.Namespace, work.Name, attempt, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))
+		workOld = work.DeepCopy()
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 		updateErr := c.Status().Update(context.TODO(), work)
-		if updateErr == nil {
-			return nil
-		}
+
 		updated := &workv1alpha1.Work{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
 			// make a copy, so we don't mutate the shared cache
 			work = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated work %s/%s: %v", work.Namespace, work.Name, err)
+			klog.Errorf("[Group %s] Failed to get updated work %s/%s: %v", group, work.Namespace, work.Name, err)
+		}
+
+		if updateErr == nil {
+			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				group, work.Namespace, work.Name, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))
 		}
 		return updateErr
 	})

@@ -15,6 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -301,6 +302,10 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
+	key, _ := keys.ClusterWideKeyFunc(newObj)
+	klog.Infof("Update event for object(%s), resourceVersion: OLD: %s; NEW: %s; Diff: %s",
+		key.String(), unstructuredOldObj.GetResourceVersion(), unstructuredNewObj.GetResourceVersion(), util.TellDiffForObjects(oldObj, newObj))
+
 	if !SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
 		klog.V(4).Infof("Ignore update event of object (kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
 		return
@@ -371,7 +376,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
-func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy) (err error) {
+func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.PropagationPolicy, group string) (err error) {
 	start := time.Now()
 	klog.Infof("Applying policy(%s/%s) for object: %s", policy.Namespace, policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
@@ -400,7 +405,10 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
+	var bindingOld *workv1alpha2.ResourceBinding
+	attempt := 0
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		attempt++
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// If this binding exists and its owner is not the input object, return error and let garbage collector
 			// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -408,6 +416,9 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 				return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
+			klog.Infof("[Group: %s] Attempt to create or update resourcebinding %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
+				group, binding.Namespace, binding.Name, attempt, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
+			bindingOld = bindingCopy.DeepCopy()
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 			bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
@@ -440,6 +451,14 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	if operationResult == controllerutil.OperationResultCreated {
 		klog.Infof("Create ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
 	} else if operationResult == controllerutil.OperationResultUpdated {
+		bindingNew := &workv1alpha2.ResourceBinding{}
+		err = d.Client.Get(context.TODO(), types.NamespacedName{Namespace: bindingCopy.Namespace, Name: bindingCopy.Name}, bindingNew)
+		if err != nil {
+			klog.Errorf("Failed to get latest ResourceBinding(%s/%s): %v", bindingCopy.Namespace, bindingCopy.Name, err)
+		} else {
+			klog.Infof("Updated ResourceBinding(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				bindingCopy.Namespace, bindingCopy.Name, bindingCopy.ResourceVersion, bindingNew.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingNew))
+		}
 		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
 	} else {
 		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
@@ -450,7 +469,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 
 // ApplyClusterPolicy starts propagate the object referenced by object key according to ClusterPropagationPolicy.
 // nolint:gocyclo
-func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy) (err error) {
+func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey, policy *policyv1alpha1.ClusterPropagationPolicy, group string) (err error) {
 	start := time.Now()
 	klog.Infof("Applying cluster policy(%s) for object: %s", policy.Name, objectKey)
 	var operationResult controllerutil.OperationResult
@@ -482,7 +501,10 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 			return err
 		}
 		bindingCopy := binding.DeepCopy()
+		bindingOld := binding.DeepCopy()
+		attempt := 0
 		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+			attempt++
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
 				// delete this binding and try again later. See https://github.com/karmada-io/karmada/issues/2090.
@@ -490,6 +512,9 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					return fmt.Errorf("failed to update binding due to different owner reference UID, will " +
 						"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 				}
+				klog.Infof("[Group: %s] Attempt to create or update resourcebinding %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
+					group, binding.Namespace, binding.Name, attempt, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
+				bindingOld = bindingCopy.DeepCopy()
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
 				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
 				bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
@@ -523,6 +548,14 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		if operationResult == controllerutil.OperationResultCreated {
 			klog.Infof("Create ResourceBinding(%s) successfully.", binding.GetName())
 		} else if operationResult == controllerutil.OperationResultUpdated {
+			bindingNew := &workv1alpha2.ResourceBinding{}
+			err = d.Client.Get(context.TODO(), types.NamespacedName{Namespace: bindingCopy.Namespace, Name: bindingCopy.Name}, bindingNew)
+			if err != nil {
+				klog.Errorf("Failed to get latest ResourceBinding(%s/%s): %v", bindingCopy.Namespace, bindingCopy.Name, err)
+			} else {
+				klog.Infof("Updated ResourceBinding(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+					bindingCopy.Namespace, bindingCopy.Name, bindingCopy.ResourceVersion, bindingNew.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingNew))
+			}
 			klog.Infof("Update ResourceBinding(%s) successfully.", binding.GetName())
 		} else {
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())

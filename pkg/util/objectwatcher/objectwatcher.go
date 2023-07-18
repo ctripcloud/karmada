@@ -26,10 +26,10 @@ import (
 
 // ObjectWatcher manages operations for object dispatched to member clusters.
 type ObjectWatcher interface {
-	Create(clusterName string, desireObj *unstructured.Unstructured) error
-	Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error
+	Create(clusterName string, desireObj *unstructured.Unstructured, group string) error
+	Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured, group string) error
 	Delete(clusterName string, desireObj *unstructured.Unstructured) error
-	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error)
+	NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured, group string) (bool, error)
 }
 
 // ClientSetFunc is used to generate client set of member cluster
@@ -57,7 +57,7 @@ func NewObjectWatcher(kubeClientSet client.Client, restMapper meta.RESTMapper, c
 	}
 }
 
-func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.Unstructured, group string) error {
 	dynamicClusterClient, err := o.ClusterClientSetFunc(clusterName, o.KubeClientSet)
 	if err != nil {
 		klog.Errorf("Failed to build dynamic cluster client for cluster %s.", clusterName)
@@ -84,13 +84,13 @@ func (o *objectWatcherImpl) Create(clusterName string, desireObj *unstructured.U
 
 		clusterObj, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Create(context.TODO(), desireObj, metav1.CreateOptions{})
 		if err != nil {
-			klog.Errorf("Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+			klog.Errorf("[Group %s] Failed to create resource(kind=%s, %s/%s) in cluster %s, err is %v ", group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 			return err
 		}
 
-		klog.Infof("Created resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+		klog.Infof("[Group %s] Created resource(kind=%s, %s/%s) on cluster: %s", group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
 		// record version
-		o.recordVersion(clusterObj, dynamicClusterClient.ClusterName)
+		o.recordVersion(clusterObj, dynamicClusterClient.ClusterName, group)
 	}
 
 	return nil
@@ -123,7 +123,7 @@ func (o *objectWatcherImpl) retainClusterFields(desired, observed *unstructured.
 	return desired, nil
 }
 
-func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured) error {
+func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *unstructured.Unstructured, group string) error {
 	updateAllowed := o.allowUpdate(clusterName, desireObj, clusterObj)
 	if !updateAllowed {
 		return nil
@@ -149,14 +149,24 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 
 	resource, err := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Update(context.TODO(), desireObj, metav1.UpdateOptions{})
 	if err != nil {
-		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s, err is %v ", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
+		if apierrors.IsConflict(err) {
+			resource, e := dynamicClusterClient.DynamicClientSet.Resource(gvr).Namespace(desireObj.GetNamespace()).Get(context.TODO(), desireObj.GetName(), metav1.GetOptions{})
+			if e == nil {
+				klog.Infof("[Group %s] Conflict result for resource(kind=%s, %s/%s) in cluster %s. ResourceVersion: OLD: %s, CUR: %s. Diff: %s.",
+					group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, desireObj.GetResourceVersion(), resource.GetResourceVersion(), util.TellDiffForObjects(resource, desireObj))
+			} else {
+				klog.Warningf("[Group %s] Failed to get resource(kind=%s, %s/%s) in cluster %s, err is %v ", group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, e)
+			}
+		}
+		klog.Errorf("[Group %s] Failed to update resource(kind=%s, %s/%s) in cluster %s, err is %v ", group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, err)
 		return err
 	}
 
-	klog.Infof("Updated resource(kind=%s, %s/%s) on cluster: %s", desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName)
+	klog.Infof("[Group %s] Updated resource(kind=%s, %s/%s) on cluster: %s, ResourceVersion: OLD: %s, CUR: %s",
+		group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, desireObj.GetResourceVersion(), resource.GetResourceVersion())
 
 	// record version
-	o.recordVersion(resource, clusterName)
+	o.recordVersion(resource, clusterName, group)
 	return nil
 }
 
@@ -201,13 +211,13 @@ func (o *objectWatcherImpl) genObjectKey(obj *unstructured.Unstructured) string 
 }
 
 // recordVersion will add or update resource version records
-func (o *objectWatcherImpl) recordVersion(clusterObj *unstructured.Unstructured, clusterName string) {
+func (o *objectWatcherImpl) recordVersion(clusterObj *unstructured.Unstructured, clusterName, group string) {
 	objVersion := lifted.ObjectVersion(clusterObj)
 	objectKey := o.genObjectKey(clusterObj)
 	if o.isClusterVersionRecordExist(clusterName) {
-		o.updateVersionRecord(clusterName, objectKey, objVersion)
+		o.updateVersionRecord(clusterName, objectKey, objVersion, group)
 	} else {
-		o.addVersionRecord(clusterName, objectKey, objVersion)
+		o.addVersionRecord(clusterName, objectKey, objVersion, group)
 	}
 }
 
@@ -231,17 +241,20 @@ func (o *objectWatcherImpl) getVersionRecord(clusterName, resourceName string) (
 }
 
 // addVersionRecord will add new version record of given resource
-func (o *objectWatcherImpl) addVersionRecord(clusterName, resourceName, version string) {
+func (o *objectWatcherImpl) addVersionRecord(clusterName, resourceName, version, group string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	o.VersionRecord[clusterName] = map[string]string{resourceName: version}
+	klog.Infof("[Group %s] Added version record in objectWatcher as %s for %s/%s", group, version, clusterName, resourceName)
 }
 
 // updateVersionRecord will update the recorded version of given resource
-func (o *objectWatcherImpl) updateVersionRecord(clusterName, resourceName, version string) {
+func (o *objectWatcherImpl) updateVersionRecord(clusterName, resourceName, version, group string) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
+	v := o.VersionRecord[clusterName][resourceName]
 	o.VersionRecord[clusterName][resourceName] = version
+	klog.Infof("[Group %s] Updated version record in objectWatcher from %s to %s for %s/%s", group, v, version, clusterName, resourceName)
 }
 
 // deleteVersionRecord will delete the recorded version of given resource
@@ -251,15 +264,19 @@ func (o *objectWatcherImpl) deleteVersionRecord(clusterName, resourceName string
 	delete(o.VersionRecord[clusterName], resourceName)
 }
 
-func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (bool, error) {
+func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured, group string) (bool, error) {
 	// get resource version
 	version, exist := o.getVersionRecord(clusterName, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
 	if !exist {
-		klog.Errorf("Failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
+		klog.Errorf("[Group: %s] Failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
 		return false, fmt.Errorf("failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
 	}
 
-	return lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version), nil
+	need := lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version)
+	klog.Infof("[Group %s] NeedUpdate check resource(kind=%s, %s/%s) need: %v, desiredVersion: %v, clusterRV: %v, clusterGen: %v",
+		group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(),
+		need, version, clusterObj.GetResourceVersion(), clusterObj.GetGeneration())
+	return need, nil
 }
 
 func (o *objectWatcherImpl) allowUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) bool {

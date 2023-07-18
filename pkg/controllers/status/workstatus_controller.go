@@ -171,10 +171,15 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
+	group := util.AddStepForFedKey("workstatus_controller", fedKey)
+
+	klog.Infof("[Group %s] Begin to sync work status for object(%s)", group, fedKey.String())
+	defer klog.Infof("[Group %s] Finish syncing work status for object(%s)", group, fedKey.String())
+
 	observedObj, err := helper.GetObjectFromCache(c.RESTMapper, c.InformerManager, fedKey)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return c.handleDeleteEvent(fedKey)
+			return c.handleDeleteEvent(fedKey, group)
 		}
 		return err
 	}
@@ -193,7 +198,7 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 			return nil
 		}
 
-		klog.Errorf("Failed to get Work(%s/%s) from cache: %v", workNamespace, workName, err)
+		klog.Errorf("[Group %s] Failed to get Work(%s/%s) from cache: %v", group, workNamespace, workName, err)
 		return err
 	}
 
@@ -215,14 +220,14 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 
 	// we should check if the observed status is consistent with the declaration to prevent accidental changes made
 	// in member clusters.
-	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj)
+	needUpdate, err := c.ObjectWatcher.NeedsUpdate(clusterName, desiredObj, observedObj, group)
 	if err != nil {
 		return err
 	}
 
 	if needUpdate {
-		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj); err != nil {
-			klog.Errorf("Update %s failed: %v", fedKey.String(), err)
+		if err := c.ObjectWatcher.Update(clusterName, desiredObj, observedObj, group); err != nil {
+			klog.Errorf("[Group %s] Update %s failed: %v", group, fedKey.String(), err)
 			return err
 		}
 		// We can't return even after a success updates, because that might lose the chance to collect status.
@@ -234,11 +239,12 @@ func (c *WorkStatusController) syncWorkStatus(key util.QueueKey) error {
 		// status changes.
 	}
 
-	klog.Infof("reflecting %s(%s/%s) status to Work(%s/%s)", observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
-	return c.reflectStatus(workObject, observedObj)
+	klog.Infof("[Group %s] reflecting %s(%s/%s) status to Work(%s/%s)", group, observedObj.GetKind(), observedObj.GetNamespace(), observedObj.GetName(), workNamespace, workName)
+	return c.reflectStatus(workObject, observedObj, group)
 }
 
-func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
+func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey, group string) error {
+	klog.Infof("[Group %s] Handling delete event", group)
 	executionSpace := names.GenerateExecutionSpaceName(key.Cluster)
 
 	// Given the workload might has been deleted from informer cache, so that we can't get work object by it's label,
@@ -260,10 +266,10 @@ func (c *WorkStatusController) handleDeleteEvent(key keys.FederatedKey) error {
 		return nil
 	}
 
-	return c.recreateResourceIfNeeded(work, key)
+	return c.recreateResourceIfNeeded(work, key, group)
 }
 
-func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work, workloadKey keys.FederatedKey) error {
+func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work, workloadKey keys.FederatedKey, group string) error {
 	for _, rawManifest := range work.Spec.Workload.Manifests {
 		manifest := &unstructured.Unstructured{}
 		if err := manifest.UnmarshalJSON(rawManifest.Raw); err != nil {
@@ -274,19 +280,19 @@ func (c *WorkStatusController) recreateResourceIfNeeded(work *workv1alpha1.Work,
 		if reflect.DeepEqual(desiredGVK, workloadKey.GroupVersionKind()) &&
 			manifest.GetNamespace() == workloadKey.Namespace &&
 			manifest.GetName() == workloadKey.Name {
-			klog.Infof("recreating %s", workloadKey.String())
-			return c.ObjectWatcher.Create(workloadKey.Cluster, manifest)
+			klog.Infof("[Group %s] recreating %s", group, workloadKey.String())
+			return c.ObjectWatcher.Create(workloadKey.Cluster, manifest, group)
 		}
 	}
 	return nil
 }
 
 // reflectStatus grabs cluster object's running status then updates to its owner object(Work).
-func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured) error {
+func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj *unstructured.Unstructured, group string) error {
 	statusRaw, err := c.ResourceInterpreter.ReflectStatus(clusterObj)
 	if err != nil {
-		klog.Errorf("Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
-			clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
+		klog.Errorf("[Group %s] Failed to reflect status for object(%s/%s/%s) with resourceInterpreter.",
+			group, clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err)
 		c.EventRecorder.Eventf(work, corev1.EventTypeWarning, events.EventReasonReflectStatusFailed, "Reflect status for object(%s/%s/%s) failed, err: %s.", clusterObj.GetKind(), clusterObj.GetNamespace(), clusterObj.GetName(), err.Error())
 		return err
 	}
@@ -323,24 +329,33 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	}
 
 	workCopy := work.DeepCopy()
+	workOld := work.DeepCopy()
+	attempt := 0
 	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		attempt++
 		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
 		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
 			return nil
 		}
+		klog.Infof("[Group: %s] Attempt to create or update work %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
+			group, work.Namespace, work.Name, attempt, workOld.ResourceVersion, workCopy.ResourceVersion, util.TellDiffForObjects(workOld, workCopy))
+		workOld = workCopy.DeepCopy()
 		workCopy.Status.ManifestStatuses = manifestStatuses
 		updateErr := c.Status().Update(context.TODO(), workCopy)
-		if updateErr == nil {
-			return nil
-		}
 
 		updated := &workv1alpha1.Work{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
 			//make a copy, so we don't mutate the shared cache
 			workCopy = updated.DeepCopy()
 		} else {
-			klog.Errorf("Failed to get updated work %s/%s: %v", workCopy.Namespace, workCopy.Name, err)
+			klog.Errorf("[Group %s] Failed to get updated work %s/%s: %v", group, workCopy.Namespace, workCopy.Name, err)
 		}
+
+		if updateErr == nil {
+			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				group, workCopy.Namespace, workCopy.Name, workOld.ResourceVersion, workCopy.ResourceVersion, util.TellDiffForObjects(workOld, workCopy))
+		}
+
 		return updateErr
 	})
 }

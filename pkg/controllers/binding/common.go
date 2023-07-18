@@ -28,22 +28,61 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 	},
 	UpdateFunc: func(e event.UpdateEvent) bool {
 		var statusesOld, statusesNew workv1alpha1.WorkStatus
+		var rvOld, rvNew string
 
 		switch oldWork := e.ObjectOld.(type) {
 		case *workv1alpha1.Work:
+			rvOld = oldWork.ResourceVersion
 			statusesOld = oldWork.Status
 		default:
 			return false
 		}
 
+		var bindingNs, bindingName string
+		var workNs, workName string
 		switch newWork := e.ObjectNew.(type) {
 		case *workv1alpha1.Work:
+			bindingNs = newWork.Annotations[workv1alpha1.ResourceBindingNamespaceLabel]
+			if bindingNs == "" {
+				bindingName = newWork.Annotations[workv1alpha1.ClusterResourceBindingLabel]
+			} else {
+				bindingName = newWork.Annotations[workv1alpha1.ResourceBindingNameLabel]
+			}
+			rvNew = newWork.ResourceVersion
+			workNs = newWork.Namespace
+			workName = newWork.Name
 			statusesNew = newWork.Status
 		default:
 			return false
 		}
 
-		return !reflect.DeepEqual(statusesOld, statusesNew)
+		if !reflect.DeepEqual(statusesOld, statusesNew) {
+			klog.Infof("Enqueue binding(%s/%s) for work(%s/%s) status update event. ResourceVersion: OLD: %s, NEW: %s. Diff: %s.",
+				bindingNs, bindingName, workNs, workName, rvOld, rvNew, util.TellDiffForObjects(statusesOld, statusesNew))
+			return true
+		}
+
+		return false
+	},
+	DeleteFunc: func(event.DeleteEvent) bool {
+		return true
+	},
+	GenericFunc: func(event.GenericEvent) bool {
+		return false
+	},
+})
+
+var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
+	CreateFunc: func(e event.CreateEvent) bool {
+		return true
+	},
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		oldBinding := e.ObjectOld.(*workv1alpha2.ResourceBinding)
+		newBinding := e.ObjectNew.(*workv1alpha2.ResourceBinding)
+
+		klog.Infof("Enqueue binding(%s/%s) for binding update event. ResourceVersion: OLD: %s, NEW: %s. Diff: %s.",
+			newBinding.Namespace, newBinding.Name, oldBinding.ResourceVersion, newBinding.ResourceVersion, util.TellDiffForObjects(oldBinding, newBinding))
+		return true
 	},
 	DeleteFunc: func(event.DeleteEvent) bool {
 		return true
@@ -56,7 +95,7 @@ var workPredicateFn = builder.WithPredicates(predicate.Funcs{
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
 	c client.Client, resourceInterpreter resourceinterpreter.ResourceInterpreter, workload *unstructured.Unstructured,
-	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope,
+	overrideManager overridemanager.OverrideManager, binding metav1.Object, scope apiextensionsv1.ResourceScope, group string,
 ) error {
 	var targetClusters []workv1alpha2.TargetCluster
 	var requiredByBindingSnapshot []workv1alpha2.BindingSnapshot
@@ -135,7 +174,7 @@ func ensureWork(
 			Annotations: annotations,
 		}
 
-		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload); err != nil {
+		if err = helper.CreateOrUpdateWork(c, workMeta, clonedWorkload, group); err != nil {
 			return err
 		}
 	}
