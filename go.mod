@@ -20,6 +20,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.1
 	github.com/vektra/mockery/v2 v2.10.0
+	github.com/wI2L/jsondiff v0.4.0
 	github.com/yuin/gopher-lua v0.0.0-20220504180219-658193537a64
 	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.24.0

@@ -59,7 +59,8 @@ type ResourceBindingController struct {
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
-	klog.V(4).Infof("Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	group := util.AddStepForRequestObject("binding_controller", req, &workv1alpha2.ResourceBinding{})
+	klog.V(4).Infof("[Group %s] Reconciling ResourceBinding %s.", req.NamespacedName.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {
@@ -80,7 +81,7 @@ func (c *ResourceBindingController) Reconcile(ctx context.Context, req controlle
 		return c.removeFinalizer(binding)
 	}
 
-	return c.syncBinding(binding)
+	return c.syncBinding(binding, group)
 }
 
 // removeFinalizer removes finalizer from the given ResourceBinding
@@ -98,7 +99,7 @@ func (c *ResourceBindingController) removeFinalizer(rb *workv1alpha2.ResourceBin
 }
 
 // syncBinding will sync resourceBinding to Works.
-func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding) (controllerruntime.Result, error) {
+func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBinding, group string) (controllerruntime.Result, error) {
 	if err := c.removeOrphanWorks(binding); err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -111,36 +112,36 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 			// So, just return without retry(requeue) would save unnecessary loop.
 			return controllerruntime.Result{}, nil
 		}
-		klog.Errorf("Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.Errorf("[Group %s] Failed to fetch workload for resourceBinding(%s/%s). Error: %v.",
+			group, binding.GetNamespace(), binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
 	var errs []error
 	start := time.Now()
-	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped)
+	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped, group)
 	metrics.ObserveSyncWorkLatency(binding.ObjectMeta, err, start)
 	if err != nil {
-		klog.Errorf("Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.Errorf("[Group %s] Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
+			group, binding.GetNamespace(), binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		errs = append(errs, err)
 	} else {
-		msg := fmt.Sprintf("Sync work of resourceBinding(%s/%s) successful.", binding.Namespace, binding.Name)
+		msg := fmt.Sprintf("[Group %s] Sync work of resourceBinding(%s/%s) successful.", group, binding.Namespace, binding.Name)
 		klog.V(4).Infof(msg)
 		c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 		c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	}
 	if err = helper.AggregateResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder); err != nil {
-		klog.Errorf("Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
-			binding.GetNamespace(), binding.GetName(), err)
+		klog.Errorf("[Group %s] Failed to aggregate workStatuses to resourceBinding(%s/%s). Error: %v.",
+			group, binding.GetNamespace(), binding.GetName(), err)
 		errs = append(errs, err)
 	}
 	if len(errs) > 0 {
 		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
 	}
 
-	err = c.updateResourceStatus(binding)
+	err = c.updateResourceStatus(binding, group)
 	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
@@ -170,7 +171,7 @@ func (c *ResourceBindingController) removeOrphanWorks(binding *workv1alpha2.Reso
 
 // updateResourceStatus will try to calculate the summary status and update to original object
 // that the ResourceBinding refer to.
-func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.ResourceBinding) error {
+func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.ResourceBinding, group string) error {
 	resource := binding.Spec.Resource
 	gvr, err := restmapper.GetGroupVersionResource(
 		c.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind),
@@ -190,19 +191,19 @@ func (c *ResourceBindingController) updateResourceStatus(binding *workv1alpha2.R
 	}
 	newObj, err := c.ResourceInterpreter.AggregateStatus(obj, binding.Status.AggregatedStatus)
 	if err != nil {
-		klog.Errorf("AggregateStatus for resource(%s/%s/%s) failed: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		klog.Errorf("[Group %s] AggregateStatus for resource(%s/%s/%s) failed: %v", group, resource.Kind, resource.Namespace, resource.Name, err)
 		return err
 	}
 	if reflect.DeepEqual(obj, newObj) {
-		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
+		klog.V(3).Infof("[Group %s] Ignore update resource(%s/%s/%s) status as up to date", group, resource.Kind, resource.Namespace, resource.Name)
 		return nil
 	}
 
 	if _, err = c.DynamicClient.Resource(gvr).Namespace(resource.Namespace).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		klog.Errorf("[Group %s] Failed to update resource(%s/%s/%s), Error: %v", group, resource.Kind, resource.Namespace, resource.Name, err)
 		return err
 	}
-	klog.V(3).Infof("Update resource status successfully for resource(%s/%s/%s)", resource.Kind, resource.Namespace, resource.Name)
+	klog.V(3).Infof("[Group %s] Update resource status successfully for resource(%s/%s/%s)", group, resource.Kind, resource.Namespace, resource.Name)
 	return nil
 }
 
@@ -226,7 +227,7 @@ func (c *ResourceBindingController) SetupWithManager(mgr controllerruntime.Manag
 			return requests
 		})
 
-	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}).
+	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ResourceBinding{}, bindingPredicateFn).
 		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.OverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).

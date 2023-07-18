@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/informers"
 	kubeclientset "k8s.io/client-go/kubernetes"
 	cliflag "k8s.io/component-base/cli/flag"
+	_ "k8s.io/component-base/metrics/prometheus/clientgo" // just for exposing metrics
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
 	controllerruntime "sigs.k8s.io/controller-runtime"

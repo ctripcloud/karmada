@@ -175,7 +175,7 @@ func (c *SyncController) buildWorks(quota *policyv1alpha1.FederatedResourceQuota
 			},
 		}
 
-		err = helper.CreateOrUpdateWork(c.Client, objectMeta, resourceQuotaObj)
+		err = helper.CreateOrUpdateWork(c.Client, objectMeta, resourceQuotaObj, "fed_quota_controller")
 		if err != nil {
 			errs = append(errs, err)
 		}
