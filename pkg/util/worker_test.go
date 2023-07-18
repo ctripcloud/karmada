@@ -158,7 +158,7 @@ func (a *asyncWorkerReconciler2) ReconcileFunc(key QueueKey) error {
 
 func Test_asyncWorker_drop_resource(t *testing.T) {
 	const name = "fake_node"
-	const wantReceivedTimes = maxRetries + 1
+	var wantReceivedTimes = maxRetries + 1
 
 	reconcile := new(asyncWorkerReconciler2)
 	worker := newTestAsyncWorker(reconcile.ReconcileFunc)
@@ -171,7 +171,7 @@ func Test_asyncWorker_drop_resource(t *testing.T) {
 	worker.Add(name)
 
 	err := assertUntil(20*time.Second, func() error {
-		receivedTimes := reconcile.receivedTimes.Load()
+		receivedTimes := int(reconcile.receivedTimes.Load())
 
 		if receivedTimes != wantReceivedTimes {
 			return fmt.Errorf("receivedTimes = %v, want = %v", receivedTimes, wantReceivedTimes)
