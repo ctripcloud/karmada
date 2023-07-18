@@ -405,7 +405,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 		return err
 	}
 	bindingCopy := binding.DeepCopy()
-	var bindingOld *workv1alpha2.ResourceBinding
+	bindingOld := binding.DeepCopy()
 	attempt := 0
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
 		attempt++
