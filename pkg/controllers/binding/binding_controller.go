@@ -119,7 +119,7 @@ func (c *ResourceBindingController) syncBinding(binding *workv1alpha2.ResourceBi
 	var errs []error
 	start := time.Now()
 	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.NamespaceScoped, group)
-	metrics.ObserveSyncWorkLatency(binding.ObjectMeta, err, start)
+	metrics.ObserveSyncWorkLatency(err, start)
 	if err != nil {
 		klog.Errorf("[Group %s] Failed to transform resourceBinding(%s/%s) to works. Error: %v.",
 			group, binding.GetNamespace(), binding.GetName(), err)
