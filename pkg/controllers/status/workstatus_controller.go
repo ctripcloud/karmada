@@ -124,9 +124,10 @@ func (c *WorkStatusController) getEventHandler() cache.ResourceEventHandler {
 // RunWorkQueue initializes worker and run it, worker will process resource asynchronously.
 func (c *WorkStatusController) RunWorkQueue() {
 	workerOptions := util.Options{
-		Name:          "work-status",
-		KeyFunc:       generateKey,
-		ReconcileFunc: c.syncWorkStatus,
+		Name:               "work-status",
+		KeyFunc:            generateKey,
+		ReconcileFunc:      c.syncWorkStatus,
+		RateLimiterOptions: c.RateLimiterOptions,
 	}
 	c.worker = util.NewAsyncWorker(workerOptions)
 	c.worker.Run(c.ConcurrentWorkStatusSyncs, c.StopChan)
