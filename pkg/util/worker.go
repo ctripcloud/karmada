@@ -23,7 +23,7 @@ var (
 )
 
 func init() {
-	flag.IntVar(&maxRetries, "worker-max-retries", 15, "async-worker max retries, 0 for unlimited")
+	flag.IntVar(&maxRetries, "worker-max-retries", 15, "async-worker max retries, -1 for unlimited")
 }
 
 // AsyncWorker maintains a rate limiting queue and the items in the queue will be reconciled by a "ReconcileFunc".
@@ -130,7 +130,7 @@ func (w *asyncWorker) handleError(err error, key interface{}) {
 		return
 	}
 
-	if maxRetries == 0 || w.queue.NumRequeues(key) < maxRetries {
+	if maxRetries < 0 || w.queue.NumRequeues(key) < maxRetries {
 		w.queue.AddRateLimited(key)
 		return
 	}
