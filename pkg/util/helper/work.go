@@ -64,6 +64,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 			return nil
 		})
 		if err != nil {
+			klog.Errorf("create or update work %s/%s fail, opResult: %v, err: %v", work.GetNamespace(), work.GetName(), operationResult, err)
 			return err
 		}
 		return nil

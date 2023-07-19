@@ -95,6 +95,7 @@ func (s *singleClusterInformerManagerImpl) ForResource(resource schema.GroupVers
 		return
 	}
 
+	klog.Infof("generic informer manager adding handler for resource(%s)", resource.String())
 	_, err := s.informerFactory.ForResource(resource).Informer().AddEventHandler(handler)
 	if err != nil {
 		klog.Errorf("Failed to add handler for resource(%s): %v", resource.String(), err)

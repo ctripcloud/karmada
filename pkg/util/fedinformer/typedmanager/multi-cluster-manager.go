@@ -7,6 +7,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 )
@@ -102,6 +103,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client kube
 		return manager
 	}
 
+	klog.Infof("building typed informer manager for cluster: %s", cluster)
 	manager := NewSingleClusterInformerManager(client, defaultResync, m.stopCh, m.transformFuncs)
 	m.managers[cluster] = manager
 	return manager
