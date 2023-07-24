@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -407,7 +408,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	bindingCopy := binding.DeepCopy()
 	bindingOld := binding.DeepCopy()
 	attempt := 0
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		attempt++
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 			// If this binding exists and its owner is not the input object, return error and let garbage collector
@@ -503,7 +504,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		bindingCopy := binding.DeepCopy()
 		bindingOld := binding.DeepCopy()
 		attempt := 0
-		err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		err = retry.RetryOnConflict(backoff.Retry, func() (err error) {
 			attempt++
 			operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), d.Client, bindingCopy, func() error {
 				// If this binding exists and its owner is not the input object, return error and let garbage collector
@@ -1227,7 +1228,7 @@ func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.Resourc
 		delete(bindingLabels, l)
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		rb.SetLabels(bindingLabels)
 		updateErr := d.Client.Update(context.TODO(), rb)
 		if updateErr == nil {
@@ -1252,7 +1253,7 @@ func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2
 		delete(bindingLabels, l)
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		crb.SetLabels(bindingLabels)
 		updateErr := d.Client.Update(context.TODO(), crb)
 		if updateErr == nil {

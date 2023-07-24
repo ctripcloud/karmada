@@ -18,6 +18,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -52,7 +53,7 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	var operationResult controllerutil.OperationResult
 	runtimeObjectCopy := work.DeepCopy()
 	attempt := 0
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		attempt++
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
 			klog.Infof("[Group: %s] Attempt to ensure work %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",

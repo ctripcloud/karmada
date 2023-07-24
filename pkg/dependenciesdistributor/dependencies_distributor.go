@@ -31,6 +31,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -437,7 +438,7 @@ func (d *DependenciesDistributor) recordDependenciesForIndependentBinding(bindin
 
 	objectAnnotation[bindingDependenciesAnnotationKey] = string(dependenciesBytes)
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		binding.SetAnnotations(objectAnnotation)
 		updateErr := d.Client.Update(context.TODO(), binding)
 		if updateErr == nil {

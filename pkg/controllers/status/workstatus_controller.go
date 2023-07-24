@@ -27,6 +27,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -332,7 +333,7 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 	workCopy := work.DeepCopy()
 	workOld := work.DeepCopy()
 	attempt := 0
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		attempt++
 		manifestStatuses := c.mergeStatus(workCopy.Status.ManifestStatuses, manifestStatus)
 		if reflect.DeepEqual(workCopy.Status.ManifestStatuses, manifestStatuses) {
