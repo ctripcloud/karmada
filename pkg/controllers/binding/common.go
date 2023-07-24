@@ -80,9 +80,12 @@ var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 		oldBinding := e.ObjectOld.(*workv1alpha2.ResourceBinding)
 		newBinding := e.ObjectNew.(*workv1alpha2.ResourceBinding)
 
-		klog.Infof("Enqueue binding(%s/%s) for binding update event. ResourceVersion: OLD: %s, NEW: %s. Diff: %s.",
-			newBinding.Namespace, newBinding.Name, oldBinding.ResourceVersion, newBinding.ResourceVersion, util.TellDiffForObjects(oldBinding, newBinding))
-		return true
+		needUpdate := predicate.GenerationChangedPredicate{}.Update(e)
+		if needUpdate {
+			klog.Infof("Enqueue binding(%s/%s) for binding update event. ResourceVersion: OLD: %s, NEW: %s. Diff: %s.",
+				newBinding.Namespace, newBinding.Name, oldBinding.ResourceVersion, newBinding.ResourceVersion, util.TellDiffForObjects(oldBinding, newBinding))
+		}
+		return needUpdate
 	},
 	DeleteFunc: func(event.DeleteEvent) bool {
 		return true
