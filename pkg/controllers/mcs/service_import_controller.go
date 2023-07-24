@@ -15,6 +15,7 @@ import (
 	mcsv1alpha1 "sigs.k8s.io/mcs-api/pkg/apis/v1alpha1"
 
 	"github.com/karmada-io/karmada/pkg/events"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -132,7 +133,7 @@ func (c *ServiceImportController) updateServiceStatus(svcImport *mcsv1alpha1.Ser
 		})
 	}
 
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err := retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		derivedService.Status = corev1.ServiceStatus{
 			LoadBalancer: corev1.LoadBalancerStatus{
 				Ingress: ingress,

@@ -28,6 +28,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
@@ -144,7 +145,7 @@ func (c *StatusController) collectQuotaStatus(quota *policyv1alpha1.FederatedRes
 		return nil
 	}
 
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.RetryOnConflict(backoff.Retry, func() error {
 		quota.Status = *quotaStatus
 		updateErr := c.Status().Update(context.TODO(), quota)
 		if updateErr == nil {

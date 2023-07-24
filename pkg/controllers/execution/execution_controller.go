@@ -26,6 +26,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/metrics"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -269,7 +270,7 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 
 	workOld := work.DeepCopy()
 	attempt := 0
-	return retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		attempt++
 		klog.Infof("[Group: %s] Attempt to create or update work %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
 			group, work.Namespace, work.Name, attempt, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))

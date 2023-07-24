@@ -23,6 +23,7 @@ import (
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/names"
 )
 
@@ -54,7 +55,7 @@ func AggregateResourceBindingWorkStatus(c client.Client, binding *workv1alpha2.R
 
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		// set binding status with the newest condition
 		currentBindingStatus.Conditions = binding.Status.Conditions
 		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)
@@ -109,7 +110,7 @@ func AggregateClusterResourceBindingWorkStatus(c client.Client, binding *workv1a
 
 	currentBindingStatus := binding.Status.DeepCopy()
 	currentBindingStatus.AggregatedStatus = aggregatedStatuses
-	err = retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err = retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		// set binding status with the newest condition
 		currentBindingStatus.Conditions = binding.Status.Conditions
 		meta.SetStatusCondition(&currentBindingStatus.Conditions, fullyAppliedCondition)

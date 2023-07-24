@@ -11,13 +11,15 @@ import (
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 )
 
 // CreateOrUpdateEndpointSlice creates a EndpointSlice object if not exist, or updates if it already exists.
 func CreateOrUpdateEndpointSlice(client client.Client, endpointSlice *discoveryv1.EndpointSlice) error {
 	runtimeObject := endpointSlice.DeepCopy()
 	var operationResult controllerutil.OperationResult
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+	err := retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		operationResult, err = controllerutil.CreateOrUpdate(context.TODO(), client, runtimeObject, func() error {
 			runtimeObject.AddressType = endpointSlice.AddressType
 			runtimeObject.Endpoints = endpointSlice.Endpoints

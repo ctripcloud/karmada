@@ -36,6 +36,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/modeling"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/backoff"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
@@ -263,7 +264,7 @@ func (c *ClusterStatusController) setStatusCollectionFailedCondition(cluster *cl
 func (c *ClusterStatusController) updateStatusIfNeeded(cluster *clusterv1alpha1.Cluster, currentClusterStatus clusterv1alpha1.ClusterStatus) (controllerruntime.Result, error) {
 	if !equality.Semantic.DeepEqual(cluster.Status, currentClusterStatus) {
 		klog.V(4).Infof("Start to update cluster status: %s", cluster.Name)
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() (err error) {
+		err := retry.RetryOnConflict(backoff.Retry, func() (err error) {
 			cluster.Status = currentClusterStatus
 			updateErr := c.Status().Update(context.TODO(), cluster)
 			if updateErr == nil {
