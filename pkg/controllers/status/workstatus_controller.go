@@ -344,6 +344,11 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 		workOld = workCopy.DeepCopy()
 		workCopy.Status.ManifestStatuses = manifestStatuses
 		updateErr := c.Status().Update(context.TODO(), workCopy)
+		if updateErr == nil {
+			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				group, workCopy.Namespace, workCopy.Name, workOld.ResourceVersion, workCopy.ResourceVersion, util.TellDiffForObjects(workOld, workCopy))
+			return nil
+		}
 
 		updated := &workv1alpha1.Work{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: workCopy.Namespace, Name: workCopy.Name}, updated); err == nil {
@@ -351,11 +356,6 @@ func (c *WorkStatusController) reflectStatus(work *workv1alpha1.Work, clusterObj
 			workCopy = updated.DeepCopy()
 		} else {
 			klog.Errorf("[Group %s] Failed to get updated work %s/%s: %v", group, workCopy.Namespace, workCopy.Name, err)
-		}
-
-		if updateErr == nil {
-			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
-				group, workCopy.Namespace, workCopy.Name, workOld.ResourceVersion, workCopy.ResourceVersion, util.TellDiffForObjects(workOld, workCopy))
 		}
 
 		return updateErr

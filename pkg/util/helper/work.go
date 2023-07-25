@@ -78,15 +78,8 @@ func CreateOrUpdateWork(client client.Client, workMeta metav1.ObjectMeta, resour
 	if operationResult == controllerutil.OperationResultCreated {
 		klog.V(2).Infof("Create work %s/%s successfully.", work.GetNamespace(), work.GetName())
 	} else if operationResult == controllerutil.OperationResultUpdated {
-		workNew := &workv1alpha1.Work{}
-		err = client.Get(context.TODO(), types.NamespacedName{Namespace: workMeta.Namespace, Name: workMeta.Name}, workNew)
-		if err != nil {
-			klog.Errorf("[Group %s] Failed to get latest Work(%s/%s): %v", group, workMeta.Namespace, workMeta.Name, err)
-		} else {
-			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
-				group, workMeta.Namespace, workMeta.Name, runtimeObjectCopy.ResourceVersion, workNew.ResourceVersion, util.TellDiffForObjects(runtimeObjectCopy, workNew))
-		}
-		klog.V(2).Infof("[Group %s] Update work %s/%s successfully.", group, work.GetNamespace(), work.GetName())
+		klog.V(2).Infof("[Group %s] Updated Work(%s/%s) successfully: resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+			group, workMeta.Namespace, workMeta.Name, runtimeObjectCopy.ResourceVersion, runtimeObject.ResourceVersion, util.TellDiffForObjects(runtimeObjectCopy, runtimeObject))
 	} else {
 		klog.V(2).Infof("[Group %s] Work %s/%s is up to date.", group, work.GetNamespace(), work.GetName())
 	}

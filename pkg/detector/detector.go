@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -452,15 +451,8 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 	if operationResult == controllerutil.OperationResultCreated {
 		klog.Infof("Create ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
 	} else if operationResult == controllerutil.OperationResultUpdated {
-		bindingNew := &workv1alpha2.ResourceBinding{}
-		err = d.Client.Get(context.TODO(), types.NamespacedName{Namespace: bindingCopy.Namespace, Name: bindingCopy.Name}, bindingNew)
-		if err != nil {
-			klog.Errorf("Failed to get latest ResourceBinding(%s/%s): %v", bindingCopy.Namespace, bindingCopy.Name, err)
-		} else {
-			klog.Infof("Updated ResourceBinding(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
-				bindingCopy.Namespace, bindingCopy.Name, bindingCopy.ResourceVersion, bindingNew.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingNew))
-		}
-		klog.Infof("Update ResourceBinding(%s/%s) successfully.", binding.GetNamespace(), binding.GetName())
+		klog.Infof("Updated ResourceBinding(%s/%s) successfully: resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+			bindingCopy.Namespace, bindingCopy.Name, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
 	} else {
 		klog.V(2).Infof("ResourceBinding(%s/%s) is up to date.", binding.GetNamespace(), binding.GetName())
 	}
@@ -549,15 +541,8 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 		if operationResult == controllerutil.OperationResultCreated {
 			klog.Infof("Create ResourceBinding(%s) successfully.", binding.GetName())
 		} else if operationResult == controllerutil.OperationResultUpdated {
-			bindingNew := &workv1alpha2.ResourceBinding{}
-			err = d.Client.Get(context.TODO(), types.NamespacedName{Namespace: bindingCopy.Namespace, Name: bindingCopy.Name}, bindingNew)
-			if err != nil {
-				klog.Errorf("Failed to get latest ResourceBinding(%s/%s): %v", bindingCopy.Namespace, bindingCopy.Name, err)
-			} else {
-				klog.Infof("Updated ResourceBinding(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
-					bindingCopy.Namespace, bindingCopy.Name, bindingCopy.ResourceVersion, bindingNew.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingNew))
-			}
-			klog.Infof("Update ResourceBinding(%s) successfully.", binding.GetName())
+			klog.Infof("Updated ResourceBinding(%s/%s) successfully: resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				bindingCopy.Namespace, bindingCopy.Name, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
 		} else {
 			klog.V(2).Infof("ResourceBinding(%s) is up to date.", binding.GetName())
 		}

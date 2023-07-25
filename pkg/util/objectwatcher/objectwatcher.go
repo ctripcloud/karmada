@@ -162,8 +162,8 @@ func (o *objectWatcherImpl) Update(clusterName string, desireObj, clusterObj *un
 		return err
 	}
 
-	klog.Infof("[Group %s] Updated resource(kind=%s, %s/%s) on cluster: %s, ResourceVersion: OLD: %s, CUR: %s",
-		group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, desireObj.GetResourceVersion(), resource.GetResourceVersion())
+	klog.Infof("[Group %s] Updated resource(kind=%s, %s/%s) on cluster: %s, ResourceVersion: OLD: %s, CUR: %s; Diff: %s",
+		group, desireObj.GetKind(), desireObj.GetNamespace(), desireObj.GetName(), clusterName, desireObj.GetResourceVersion(), resource.GetResourceVersion(), util.TellDiffForObjects(desireObj, resource))
 
 	// record version
 	o.recordVersion(resource, clusterName, group)
