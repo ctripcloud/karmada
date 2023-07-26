@@ -1,8 +1,6 @@
 package binding
 
 import (
-	"reflect"
-
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -21,56 +19,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
-
-var workPredicateFn = builder.WithPredicates(predicate.Funcs{
-	CreateFunc: func(e event.CreateEvent) bool {
-		return false
-	},
-	UpdateFunc: func(e event.UpdateEvent) bool {
-		var statusesOld, statusesNew workv1alpha1.WorkStatus
-		var rvOld, rvNew string
-
-		switch oldWork := e.ObjectOld.(type) {
-		case *workv1alpha1.Work:
-			rvOld = oldWork.ResourceVersion
-			statusesOld = oldWork.Status
-		default:
-			return false
-		}
-
-		var bindingNs, bindingName string
-		var workNs, workName string
-		switch newWork := e.ObjectNew.(type) {
-		case *workv1alpha1.Work:
-			bindingNs = newWork.Annotations[workv1alpha1.ResourceBindingNamespaceLabel]
-			if bindingNs == "" {
-				bindingName = newWork.Annotations[workv1alpha1.ClusterResourceBindingLabel]
-			} else {
-				bindingName = newWork.Annotations[workv1alpha1.ResourceBindingNameLabel]
-			}
-			rvNew = newWork.ResourceVersion
-			workNs = newWork.Namespace
-			workName = newWork.Name
-			statusesNew = newWork.Status
-		default:
-			return false
-		}
-
-		if !reflect.DeepEqual(statusesOld, statusesNew) {
-			klog.Infof("Enqueue binding(%s/%s) for work(%s/%s) status update event. ResourceVersion: OLD: %s, NEW: %s. Diff: %s.",
-				bindingNs, bindingName, workNs, workName, rvOld, rvNew, util.TellDiffForObjects(statusesOld, statusesNew))
-			return true
-		}
-
-		return false
-	},
-	DeleteFunc: func(event.DeleteEvent) bool {
-		return true
-	},
-	GenericFunc: func(event.GenericEvent) bool {
-		return false
-	},
-})
 
 var bindingPredicateFn = builder.WithPredicates(predicate.Funcs{
 	CreateFunc: func(e event.CreateEvent) bool {
