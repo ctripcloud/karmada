@@ -214,24 +214,26 @@ func RemoveOrphanWorks(c client.Client, works []workv1alpha1.Work) error {
 	return errors.NewAggregate(errs)
 }
 
-// FetchWorkload fetches the kubernetes resource to be propagated.
-func FetchWorkload(dynamicClient dynamic.Interface, informerManager genericmanager.SingleClusterInformerManager,
-	restMapper meta.RESTMapper, resource workv1alpha2.ObjectReference) (*unstructured.Unstructured, error) {
-	dynamicResource, err := restmapper.GetGroupVersionResource(restMapper,
-		schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
+// FetchResourceTemplate fetches the resource template to be propagated.
+func FetchResourceTemplate(
+	dynamicClient dynamic.Interface,
+	informerManager genericmanager.SingleClusterInformerManager,
+	restMapper meta.RESTMapper,
+	resource workv1alpha2.ObjectReference,
+) (*unstructured.Unstructured, error) {
+	gvr, err := restmapper.GetGroupVersionResource(restMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind))
 	if err != nil {
-		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion,
-			resource.Kind, err)
+		klog.Errorf("Failed to get GVR from GVK(%s/%s), Error: %v", resource.APIVersion, resource.Kind, err)
 		return nil, err
 	}
 
-	var workload runtime.Object
+	var object runtime.Object
 
 	if len(resource.Namespace) == 0 {
 		// cluster-scoped resource
-		workload, err = informerManager.Lister(dynamicResource).Get(resource.Name)
+		object, err = informerManager.Lister(gvr).Get(resource.Name)
 	} else {
-		workload, err = informerManager.Lister(dynamicResource).ByNamespace(resource.Namespace).Get(resource.Name)
+		object, err = informerManager.Lister(gvr).ByNamespace(resource.Namespace).Get(resource.Name)
 	}
 	if err != nil {
 		klog.Warningf("Failed to get workload from cache, kind: %s, namespace: %s, name: %s. Error: %v",
@@ -252,13 +254,13 @@ func FetchWorkload(dynamicClient dynamic.Interface, informerManager genericmanag
 		*/
 	}
 
-	unstructuredWorkLoad, err := ToUnstructured(workload)
+	unstructuredObj, err := ToUnstructured(object)
 	if err != nil {
-		klog.Errorf("Failed to transform object(%s/%s): %v", resource.Namespace, resource.Name, err)
+		klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
 		return nil, err
 	}
 
-	return unstructuredWorkLoad, nil
+	return unstructuredObj, nil
 }
 
 // GetClusterResourceBindings returns a ClusterResourceBindingList by labels.
