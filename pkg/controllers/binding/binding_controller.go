@@ -60,7 +60,7 @@ type ResourceBindingController struct {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (c *ResourceBindingController) Reconcile(ctx context.Context, req controllerruntime.Request) (controllerruntime.Result, error) {
 	group := util.AddStepForRequestObject("binding_controller", req, &workv1alpha2.ResourceBinding{})
-	klog.V(4).Infof("[Group %s] Reconciling ResourceBinding %s.", req.NamespacedName.String())
+	klog.V(4).Infof("[Group %s] Reconciling ResourceBinding %s.", group, req.NamespacedName.String())
 
 	binding := &workv1alpha2.ResourceBinding{}
 	if err := c.Client.Get(ctx, req.NamespacedName, binding); err != nil {

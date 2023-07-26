@@ -277,6 +277,11 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 		workOld = work.DeepCopy()
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 		updateErr := c.Status().Update(context.TODO(), work)
+		if updateErr == nil {
+			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
+				group, work.Namespace, work.Name, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))
+			return nil
+		}
 
 		updated := &workv1alpha1.Work{}
 		if err = c.Get(context.TODO(), client.ObjectKey{Namespace: work.Namespace, Name: work.Name}, updated); err == nil {
@@ -286,10 +291,6 @@ func (c *Controller) updateAppliedCondition(work *workv1alpha1.Work, status meta
 			klog.Errorf("[Group %s] Failed to get updated work %s/%s: %v", group, work.Namespace, work.Name, err)
 		}
 
-		if updateErr == nil {
-			klog.Infof("[Group %s] Updated Work(%s/%s): resourceVersion: OLD: %s, NEW: %s; Diff: %s",
-				group, work.Namespace, work.Name, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))
-		}
 		return updateErr
 	})
 }
