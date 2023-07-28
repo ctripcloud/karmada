@@ -3,6 +3,8 @@ package objectwatcher
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"sync"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -296,7 +298,7 @@ func (o *objectWatcherImpl) needsUpdate(clusterName string, desiredObj, clusterO
 		return false, fmt.Errorf("failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
 	}
 
-	need = lifted.ObjectNeedsUpdate(desiredObj, clusterObj, recordedVersion)
+	need = ObjectNeedsUpdate(desiredObj, clusterObj, recordedVersion)
 	return need, nil
 }
 
@@ -358,4 +360,49 @@ func (o *objectWatcherImpl) allowUpdate(clusterName string, desiredObj, clusterO
 		desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName, workv1alpha2.ResourceConflictResolutionAnnotation,
 	)
 	return false
+}
+
+// ObjectNeedsUpdate determines whether the 2 objects provided cluster
+// object needs to be updated according to the desired object and the
+// recorded version.
+func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, recordedVersion string) bool {
+	targetVersion := lifted.ObjectVersion(clusterObj)
+
+	if recordedVersion != targetVersion {
+		return true
+	}
+
+	// If versions match and the version is sourced from the
+	// generation field, a further check of metadata equivalency is
+	// required.
+	return strings.HasPrefix(targetVersion, "gen:") && !objectMetaObjEquivalent(desiredObj, clusterObj)
+}
+
+func objectMetaObjEquivalent(desired, cluster *unstructured.Unstructured) bool {
+	if desired.GetName() != cluster.GetName() {
+		return false
+	}
+	if desired.GetNamespace() != cluster.GetNamespace() {
+		return false
+	}
+	desiredCopy := copyOnlyLabelsAndAnnotations(desired)
+	clusterCopy := copyOnlyLabelsAndAnnotations(cluster)
+
+	// Retain annotations since they will typically be set by controllers in a member cluster
+	// and be set by user in karmada-controller-plane.
+	util.RetainAnnotations(desiredCopy, clusterCopy)
+
+	// Retain labels since they will typically be set by controllers in a member cluster
+	// and be set by user in karmada-controller-plane.
+	util.RetainLabels(desiredCopy, clusterCopy)
+
+	return reflect.DeepEqual(desiredCopy.GetLabels(), cluster.GetLabels()) &&
+		reflect.DeepEqual(desiredCopy.GetAnnotations(), cluster.GetAnnotations())
+}
+
+func copyOnlyLabelsAndAnnotations(a *unstructured.Unstructured) *unstructured.Unstructured {
+	ret := &unstructured.Unstructured{}
+	ret.SetAnnotations(a.GetAnnotations())
+	ret.SetLabels(a.GetLabels())
+	return ret
 }
