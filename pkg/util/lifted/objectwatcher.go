@@ -25,6 +25,7 @@ package lifted
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -64,6 +65,66 @@ func ObjectNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured, record
 	// generation field, a further check of metadata equivalency is
 	// required.
 	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
+}
+
+// ObjectMetaNeedsUpdate determines whether the 2 objects provided cluster
+// object's metadata needs to be updated according to the desired object
+// and the clusterObj.
+func ObjectMetaNeedsUpdate(desiredObj, clusterObj *unstructured.Unstructured) bool {
+	targetVersion := ObjectVersion(clusterObj)
+
+	// If versions match and the version is sourced from the
+	// generation field, a further check of metadata equivalency is
+	// required.
+	return strings.HasPrefix(targetVersion, generationPrefix) && !objectMetaObjEquivalent(desiredObj, clusterObj)
+}
+
+// CompareObjectVersion compares two non nil objects' generation
+// or resourceVersion, return error if objects got invalid version.
+func CompareObjectVersion(a, b string) (genRes *int, rvSame bool, err error) {
+	ag, arv, aPrefix, err := parseObjectVersion(a)
+	if err != nil {
+		return nil, false, err
+	}
+	bg, brv, bPrefix, err := parseObjectVersion(b)
+	if err != nil {
+		return nil, false, err
+	}
+	if aPrefix == generationPrefix && bPrefix == generationPrefix {
+		res := 0
+		if ag-bg < 0 {
+			res = -1
+		} else if ag-bg > 0 {
+			res = 1
+		}
+		return &res, false, nil
+	}
+	return nil, arv == brv, nil
+}
+
+func parseObjectVersion(s string) (int64, string, string, error) {
+	if strings.HasPrefix(s, generationPrefix) {
+		genStr := strings.TrimPrefix(s, generationPrefix)
+		gen, err := strconv.ParseInt(genStr, 10, 64)
+		if err != nil {
+			return 0, "", "", err
+		}
+		if gen == 0 {
+			return 0, "", "", fmt.Errorf("generation should not be 0: %s", s)
+		}
+		return gen, "", generationPrefix, nil
+	}
+
+	if strings.HasPrefix(s, resourceVersionPrefix) {
+		rvStr := strings.TrimPrefix(s, resourceVersionPrefix)
+		_, err := strconv.ParseUint(rvStr, 10, 64)
+		if err != nil {
+			return 0, "", "", err
+		}
+		return 0, rvStr, resourceVersionPrefix, nil
+	}
+
+	return 0, "", "", fmt.Errorf("unknown object version: %s", s)
 }
 
 // +lifted:source=https://github.com/kubernetes-sigs/kubefed/blob/master/pkg/controller/util/meta.go#L63-L80

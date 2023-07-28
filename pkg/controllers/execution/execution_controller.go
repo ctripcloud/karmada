@@ -250,10 +250,17 @@ func (c *Controller) tryCreateOrUpdateWorkload(clusterName string, workload *uns
 	}
 	klog.Infof("[Group %s] Got resource(%s) from cache.", group, fedKey.String())
 
-	err = c.ObjectWatcher.Update(clusterName, workload, clusterObj, group)
+	need, err := c.ObjectWatcher.NeedsUpdate(clusterName, workload, clusterObj, group)
 	if err != nil {
-		klog.Errorf("[Group %s] Failed to update resource in the given member cluster %s, err is %v", group, clusterName, err)
+		klog.Errorf("[Group %s] Failed to check resource needUpdate in the given member cluster %s, err is %v", group, clusterName, err)
 		return err
+	}
+	if need {
+		err = c.ObjectWatcher.Update(clusterName, workload, clusterObj, group)
+		if err != nil {
+			klog.Errorf("[Group %s] Failed to update resource in the given member cluster %s, err is %v", group, clusterName, err)
+			return err
+		}
 	}
 	return nil
 }
