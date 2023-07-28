@@ -145,5 +145,11 @@ func objectMetaObjEquivalent(a, b metav1.Object) bool {
 	if !reflect.DeepEqual(aLabels, bLabels) && (len(aLabels) != 0 || len(bLabels) != 0) {
 		return false
 	}
+
+	aAnnotations := a.GetAnnotations()
+	bAnnotations := b.GetAnnotations()
+	if !reflect.DeepEqual(aAnnotations, bAnnotations) && (len(aAnnotations) != 0 || len(bAnnotations) != 0) {
+		return false
+	}
 	return true
 }
