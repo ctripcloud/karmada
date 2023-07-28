@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"sync"
 
+	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -264,19 +266,118 @@ func (o *objectWatcherImpl) deleteVersionRecord(clusterName, resourceName string
 	delete(o.VersionRecord[clusterName], resourceName)
 }
 
-func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured, group string) (bool, error) {
-	// get resource version
-	version, exist := o.getVersionRecord(clusterName, desiredObj.GroupVersionKind().String()+"/"+desiredObj.GetNamespace()+"/"+desiredObj.GetName())
-	if !exist {
-		klog.Errorf("[Group: %s] Failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
-		return false, fmt.Errorf("failed to update resource(kind=%s, %s/%s) in cluster %s for the version record does not exist", desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(), clusterName)
+func (o *objectWatcherImpl) NeedsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured, group string) (need bool, err error) {
+	// just for log
+	objectKey := o.genObjectKey(clusterObj)
+	recordedVersion, _ := o.getVersionRecord(clusterName, objectKey)
+	clusterVersion := lifted.ObjectVersion(clusterObj)
+	genRes, rvSame, _ := lifted.CompareObjectVersion(clusterVersion, recordedVersion)
+	genStr := "<nil>"
+	if genRes != nil {
+		genStr = fmt.Sprint(*genRes)
 	}
 
-	need := lifted.ObjectNeedsUpdate(desiredObj, clusterObj, version)
-	klog.Infof("[Group %s] NeedUpdate check resource(kind=%s, %s/%s) need: %v, desiredVersion: %v, clusterRV: %v, clusterGen: %v",
-		group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(),
-		need, version, clusterObj.GetResourceVersion(), clusterObj.GetGeneration())
+	need, err = o.needsUpdate(clusterName, desiredObj, clusterObj, group)
+	if err != nil {
+		klog.Errorf("[Group %s] NeedUpdate check resource(kind=%s, %s/%s) err: %v, desiredVersion: %v, clusterRV: %v, clusterGen: %v, genRes: %v, rvSame: %v",
+			group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(),
+			err, recordedVersion, clusterObj.GetResourceVersion(), clusterObj.GetGeneration(), genStr, rvSame)
+	} else {
+		klog.Infof("[Group %s] NeedUpdate check resource(kind=%s, %s/%s) need: %v, desiredVersion: %v, clusterRV: %v, clusterGen: %v, genRes: %v, rvSame: %v",
+			group, desiredObj.GetKind(), desiredObj.GetNamespace(), desiredObj.GetName(),
+			need, recordedVersion, clusterObj.GetResourceVersion(), clusterObj.GetGeneration(), genStr, rvSame)
+	}
+	return need, err
+}
+
+func (o *objectWatcherImpl) needsUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured, group string) (need bool, err error) {
+	// get resource version
+	objectKey := o.genObjectKey(clusterObj)
+	recordedVersion, exist := o.getVersionRecord(clusterName, objectKey)
+	clusterVersion := lifted.ObjectVersion(clusterObj)
+
+	cacheInvalid := false
+	genRes, rvSame, err := lifted.CompareObjectVersion(clusterVersion, recordedVersion)
+	if exist && err != nil {
+		return false, err
+	}
+	switch {
+	case !exist:
+		// we never update this cluster object
+		fallthrough
+	case genRes != nil && *genRes < 0:
+		// clusterObj cache slow or cluster object got delete-recreate
+
+		// if clusterObj doesn't allow update, we just keep checking in next time
+		// TODO: if allowUpdate() == false cause Update() returns error, here should too
+		if !o.allowUpdate(clusterName, desiredObj, clusterObj) {
+			return false, nil
+		}
+
+		cacheInvalid = true
+		need, clusterObj, err = o.dynamicContentCheck(clusterName, desiredObj, clusterObj)
+		if err != nil {
+			return false, err
+		}
+		if need {
+			return true, nil
+		}
+	case genRes != nil && *genRes > 0:
+		fallthrough
+	case genRes == nil && !rvSame:
+		return true, nil
+	}
+
+	// If versions match and the version is sourced from the
+	// generation field, a further check of metadata equivalency is
+	// required.
+	need = lifted.ObjectMetaNeedsUpdate(desiredObj, clusterObj)
+
+	if !need && cacheInvalid {
+		// if metadata and other contents are same with cache invalid, just cache the version.
+		// if it's cache slow, it will catch up, then we will check again.
+		o.recordVersion(clusterObj, clusterName, group)
+	}
 	return need, nil
+}
+
+// dynamicContentCheck get the newest object, compares non metadata/status fields with desiredObj
+func (o *objectWatcherImpl) dynamicContentCheck(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) (needUpdate bool, newestClusterObj *unstructured.Unstructured, err error) {
+	gvr, err := restmapper.GetGroupVersionResource(o.RESTMapper, clusterObj.GetObjectKind().GroupVersionKind())
+	if err != nil {
+		return false, clusterObj, err
+	}
+	dynamicClient := o.InformerManager.GetSingleClusterManager(clusterName).GetClient()
+	var c dynamic.ResourceInterface
+	if clusterObj.GetNamespace() != "" {
+		c = dynamicClient.Resource(gvr).Namespace(clusterObj.GetNamespace())
+	} else {
+		c = dynamicClient.Resource(gvr)
+	}
+	newestClusterObj, err = c.Get(context.TODO(), clusterObj.GetName(), metav1.GetOptions{})
+	if err != nil {
+		return false, clusterObj, err
+	}
+
+	// if we never updated this cluster object or cluster object got delete-recreate, we needUpdate a content check
+	desiredContent := copyNonMetadataAndStatus(desiredObj.Object)
+	clusterContent := copyNonMetadataAndStatus(newestClusterObj.Object)
+
+	if !apiequality.Semantic.DeepEqual(desiredContent, clusterContent) {
+		needUpdate = true
+	}
+	return needUpdate, newestClusterObj, nil
+}
+
+func copyNonMetadataAndStatus(original map[string]interface{}) map[string]interface{} {
+	ret := make(map[string]interface{})
+	for key, val := range original {
+		if key == "metadata" || key == "status" {
+			continue
+		}
+		ret[key] = val
+	}
+	return ret
 }
 
 func (o *objectWatcherImpl) allowUpdate(clusterName string, desiredObj, clusterObj *unstructured.Unstructured) bool {
