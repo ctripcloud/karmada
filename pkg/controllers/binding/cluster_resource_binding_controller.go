@@ -3,13 +3,17 @@ package binding
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/klog/v2"
@@ -18,11 +22,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/events"
 	"github.com/karmada-io/karmada/pkg/metrics"
@@ -32,6 +37,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
+	"github.com/karmada-io/karmada/pkg/util/restmapper"
 )
 
 // ClusterResourceBindingControllerName is the controller name that will be used when reporting events.
@@ -99,7 +105,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 
 	group := util.AddStepForObject("cluster_binding_controller", binding)
 
-	workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+	workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// It might happen when the resource template has been removed but the garbage collector hasn't removed
@@ -110,7 +116,7 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
 		return controllerruntime.Result{Requeue: true}, err
 	}
-
+	var errs []error
 	start := time.Now()
 	err = ensureWork(c.Client, c.ResourceInterpreter, workload, c.OverrideManager, binding, apiextensionsv1.ClusterScoped, group)
 	metrics.ObserveSyncWorkLatency(err, start)
@@ -118,13 +124,28 @@ func (c *ClusterResourceBindingController) syncBinding(binding *workv1alpha2.Clu
 		klog.Errorf("Failed to transform clusterResourceBinding(%s) to works. Error: %v.", binding.GetName(), err)
 		c.EventRecorder.Event(binding, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
 		c.EventRecorder.Event(workload, corev1.EventTypeWarning, events.EventReasonSyncWorkFailed, err.Error())
+		errs = append(errs, err)
+	} else {
+		msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
+		klog.V(4).Infof(msg)
+		c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
+		c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
+	}
+
+	err = helper.AggregateClusterResourceBindingWorkStatus(c.Client, binding, workload, c.EventRecorder)
+	if err != nil {
+		klog.Errorf("Failed to aggregate workStatuses to clusterResourceBinding(%s). Error: %v.", binding.GetName(), err)
+		errs = append(errs, err)
+	}
+	if len(errs) > 0 {
+		return controllerruntime.Result{Requeue: true}, errors.NewAggregate(errs)
+	}
+
+	err = c.updateResourceStatus(binding)
+	if err != nil {
 		return controllerruntime.Result{Requeue: true}, err
 	}
 
-	msg := fmt.Sprintf("Sync work of clusterResourceBinding(%s) successful.", binding.GetName())
-	klog.V(4).Infof(msg)
-	c.EventRecorder.Event(binding, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
-	c.EventRecorder.Event(workload, corev1.EventTypeNormal, events.EventReasonSyncWorkSucceed, msg)
 	return controllerruntime.Result{}, nil
 }
 
@@ -146,12 +167,68 @@ func (c *ClusterResourceBindingController) removeOrphanWorks(binding *workv1alph
 	return nil
 }
 
+// updateResourceStatus will try to calculate the summary status and update to original object
+// that the ResourceBinding refer to.
+func (c *ClusterResourceBindingController) updateResourceStatus(binding *workv1alpha2.ClusterResourceBinding) error {
+	resource := binding.Spec.Resource
+	gvr, err := restmapper.GetGroupVersionResource(
+		c.RESTMapper, schema.FromAPIVersionAndKind(resource.APIVersion, resource.Kind),
+	)
+	if err != nil {
+		klog.Errorf("Failed to get GVR from GVK %s %s. Error: %v", resource.APIVersion, resource.Kind, err)
+		return err
+	}
+	obj, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, resource)
+	if err != nil {
+		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+
+	if !c.ResourceInterpreter.HookEnabled(obj.GroupVersionKind(), configv1alpha1.InterpreterOperationAggregateStatus) {
+		return nil
+	}
+	newObj, err := c.ResourceInterpreter.AggregateStatus(obj, binding.Status.AggregatedStatus)
+	if err != nil {
+		klog.Errorf("AggregateStatus for resource(%s/%s/%s) failed: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	if reflect.DeepEqual(obj, newObj) {
+		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date", resource.Kind, resource.Namespace, resource.Name)
+		return nil
+	}
+
+	if _, err = c.DynamicClient.Resource(gvr).Namespace(resource.Namespace).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
+		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", resource.Kind, resource.Namespace, resource.Name, err)
+		return err
+	}
+	klog.V(3).Infof("Update resource status successfully for resource(%s/%s/%s)", resource.Kind, resource.Namespace, resource.Name)
+	return nil
+}
+
 // SetupWithManager creates a controller and register to controller manager.
 func (c *ClusterResourceBindingController) SetupWithManager(mgr controllerruntime.Manager) error {
+	workFn := handler.MapFunc(
+		func(a client.Object) []reconcile.Request {
+			var requests []reconcile.Request
+			annotations := a.GetAnnotations()
+			crbName, nameExist := annotations[workv1alpha2.ClusterResourceBindingAnnotationKey]
+			if nameExist {
+				requests = append(requests, reconcile.Request{
+					NamespacedName: types.NamespacedName{
+						Name: crbName,
+					},
+				})
+			}
+
+			return requests
+		})
+
 	return controllerruntime.NewControllerManagedBy(mgr).For(&workv1alpha2.ClusterResourceBinding{}).
+		Watches(&source.Kind{Type: &workv1alpha1.Work{}}, handler.EnqueueRequestsFromMapFunc(workFn), workPredicateFn).
 		Watches(&source.Kind{Type: &policyv1alpha1.ClusterOverridePolicy{}}, handler.EnqueueRequestsFromMapFunc(c.newOverridePolicyFunc())).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithOptions(controller.Options{RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions)}).
+		WithOptions(controller.Options{
+			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
+		}).
 		Complete(c)
 }
 
@@ -180,7 +257,7 @@ func (c *ClusterResourceBindingController) newOverridePolicyFunc() handler.MapFu
 				continue
 			}
 
-			workload, err := helper.FetchResourceTemplate(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
+			workload, err := helper.FetchWorkload(c.DynamicClient, c.InformerManager, c.RESTMapper, binding.Spec.Resource)
 			if err != nil {
 				klog.Errorf("Failed to fetch workload for clusterResourceBinding(%s). Error: %v.", binding.Name, err)
 				return nil
