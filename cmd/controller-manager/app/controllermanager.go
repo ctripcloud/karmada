@@ -153,6 +153,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String():               opts.ConcurrentClusterSyncs,
 				schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Namespace"}.GroupKind().String(): opts.ConcurrentNamespaceSyncs,
 			},
+			CacheSyncTimeout: &opts.ClusterCacheSyncTimeout.Duration,
 		},
 		NewCache: cache.BuilderWithOptions(cache.Options{
 			DefaultTransform: fedinformer.StripUnusedFields,
