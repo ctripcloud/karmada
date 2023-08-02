@@ -32,6 +32,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/backoff"
+	"github.com/karmada-io/karmada/pkg/util/eventfilter"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
@@ -158,6 +159,23 @@ func (d *DependenciesDistributor) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
+	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+	if err != nil {
+		klog.Errorf("Failed to transform oldObj, error: %v", err)
+		return
+	}
+
+	unstructuredNewObj, err := helper.ToUnstructured(newObj)
+	if err != nil {
+		klog.Errorf("Failed to transform newObj, error: %v", err)
+		return
+	}
+
+	if !eventfilter.SpecificationChanged(unstructuredOldObj, unstructuredNewObj) {
+		klog.V(4).Infof("Ignore update event of object (%s, kind=%s, %s/%s) as specification no change", unstructuredOldObj.GetAPIVersion(), unstructuredOldObj.GetKind(), unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName())
+		return
+	}
+
 	d.OnAdd(newObj)
 }
 
