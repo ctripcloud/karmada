@@ -5,27 +5,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync/atomic"
 
-	"github.com/go-logr/zapr"
 	"github.com/spf13/pflag"
-	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"k8s.io/klog/v2"
 )
 
 var (
-	// Runtime logger for runtime logging
-	Runtime *zap.Logger
-)
-
-var (
-	runtimeWriter *lumberjack.Logger
-	runtimeSyncer *MutableWriteSyncer
-
 	// UseFileLogger indicate use custom file logger or not
-	UseFileLogger                        bool
+	UseFileLogger bool
+
+	runtimeSyncer                        zapcore.WriteSyncer
 	globalFlags                          *pflag.FlagSet
 	logRemain, logMaxSize, logMaxBackups int
 )
@@ -52,89 +43,30 @@ func InitLogger() error {
 	if err != nil {
 		return err
 	}
-	klog.SetLogger(zapr.NewLogger(Runtime))
+	klog.SetOutputBySeverity("INFO", runtimeSyncer)
 	return nil
 }
 
-// MutableWriteSyncer a WriteSyncer implementation support change inner WriteSyncer on the fly
-type MutableWriteSyncer struct {
-	syncer atomic.Value
-}
-
-func newMutableWriteSyncer(defaultSyncer zapcore.WriteSyncer) *MutableWriteSyncer {
-	mws := &MutableWriteSyncer{}
-	mws.syncer.Store(&defaultSyncer)
-	return mws
-}
-
-func (mws *MutableWriteSyncer) get() zapcore.WriteSyncer {
-	return *(mws.syncer.Load().(*zapcore.WriteSyncer))
-}
-
-func (mws *MutableWriteSyncer) setWriteSyncer(newSyncer zapcore.WriteSyncer) {
-	mws.syncer.Store(&newSyncer)
-}
-
-// Write implement WriteSyncer.Write
-func (mws *MutableWriteSyncer) Write(p []byte) (n int, err error) {
-	return mws.get().Write(p)
-}
-
-// Sync implement WriteSyncer.Sync
-func (mws *MutableWriteSyncer) Sync() error {
-	return mws.get().Sync()
-}
-
-func init() {
-	runtimeSyncer = newMutableWriteSyncer(zapcore.Lock(zapcore.AddSync(os.Stdout)))
-	jsonEncoder := zapcore.NewJSONEncoder(zapcore.EncoderConfig{
-		TimeKey:        "ts",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		CallerKey:      "caller",
-		MessageKey:     "msg",
-		StacktraceKey:  "stacktrace",
-		LineEnding:     zapcore.DefaultLineEnding,
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.SecondsDurationEncoder,
-		EncodeCaller:   zapcore.ShortCallerEncoder,
-	})
-
-	runtimeCore := zapcore.NewCore(
-		jsonEncoder,
-		runtimeSyncer,
-		zapcore.InfoLevel,
-	)
-	Runtime = zap.New(runtimeCore, zap.AddCaller())
-}
-
-// Ref: https://github.com/uber-go/zap/blob/master/FAQ.md#does-zap-support-log-rotation
 func initWithRotation(file string, runtimeRemaindays, runtimeMaxSize, runtimeMaxBackups int) (err error) {
 	if file == "" {
 		return fmt.Errorf("must specify logfile")
 	}
 
-	if file != "" {
-		runtimeWriter = &lumberjack.Logger{
-			Filename:   file,
-			MaxSize:    runtimeMaxSize,    // megabytes
-			MaxBackups: runtimeMaxBackups, // files number
-			MaxAge:     runtimeRemaindays, // days
-		}
-		runtimeSyncer.setWriteSyncer(zapcore.AddSync(runtimeWriter))
+	// Ref: https://github.com/uber-go/zap/blob/master/FAQ.md#does-zap-support-log-rotation
+	runtimeWriter := &lumberjack.Logger{
+		Filename:   file,
+		MaxSize:    runtimeMaxSize,    // megabytes
+		MaxBackups: runtimeMaxBackups, // files number
+		MaxAge:     runtimeRemaindays, // days
 	}
+	runtimeSyncer = zapcore.AddSync(runtimeWriter)
 
 	return nil
 }
 
 // Final finalizer of this module
 func Final() {
-	if Runtime != nil {
-		_ = Runtime.Sync()
-	}
-
-	if runtimeWriter != nil {
-		_ = runtimeWriter.Close()
+	if runtimeSyncer != nil {
+		_ = runtimeSyncer.Sync()
 	}
 }
