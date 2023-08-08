@@ -96,12 +96,25 @@ verify:
 release-chart:
 	hack/release-helm-chart.sh $(VERSION)
 
+COLOR_GOTEST_REGISTRY:=github.com/rakyll/gotest
+COLOR_GOTEST_VERSION:=aeb9f1f4739020c60963f21eec2e65672307a9ac
+COLOR_GOTEST_ENABLED?=
+GOTEST_PALETTE?=hired,higreen
+GOTEST=go test
+
+.PHONY: install_gotest
+install_gotest:
+ifdef COLOR_GOTEST_ENABLED 
+	go install ${COLOR_GOTEST_REGISTRY}@${COLOR_GOTEST_VERSION}
+GOTEST=gotest
+endif
+
 .PHONY: test
-test:
+test: install_gotest
 	mkdir -p ./_output/coverage/
-	go test --race --v ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt -covermode=atomic
-	go test --race --v ./cmd/... -coverprofile=./_output/coverage/coverage_cmd.txt -covermode=atomic
-	go test --race --v ./examples/... -coverprofile=./_output/coverage/coverage_examples.txt -covermode=atomic
+	$(GOTEST) --race --v ./pkg/... -coverprofile=./_output/coverage/coverage_pkg.txt -covermode=atomic
+	$(GOTEST) --race --v ./cmd/... -coverprofile=./_output/coverage/coverage_cmd.txt -covermode=atomic
+	$(GOTEST) --race --v ./examples/... -coverprofile=./_output/coverage/coverage_examples.txt -covermode=atomic
 
 upload-images: images
 	@echo "push images to $(REGISTRY)"
@@ -158,6 +171,9 @@ GODOCKER ?= docker run --rm \
 		-e GOPROXY=${GOPROXY} \
 		-e GOSUMDB=${GOSUMDB} \
 		-e GO111MODULE=on \
+		-e COLOR_GOTEST_ENABLED=enabled \
+		-e CI=gitlab_ci \
+		-e GOTEST_PALETTE=${GOTEST_PALETTE} \
 		--network=host \
 		-v /etc/resolv.conf:/etc/resolv.conf:ro \
 		-v ${CURDIR}:/tmp/${current_prj}:rw \
