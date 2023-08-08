@@ -6,7 +6,6 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20210507173845-9329f6a62b67
 	github.com/emirpasic/gods v1.18.1
 	github.com/evanphx/json-patch/v5 v5.6.0
-	github.com/go-logr/zapr v1.2.3
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.9
@@ -83,6 +82,7 @@ require (
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/swag v0.22.3 // indirect
