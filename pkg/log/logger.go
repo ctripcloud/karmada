@@ -3,6 +3,7 @@ package log
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -44,6 +45,8 @@ func InitLogger() error {
 		return err
 	}
 	klog.SetOutputBySeverity("INFO", runtimeSyncer)
+	klog.SetOutputBySeverity("WARNING", io.Discard)
+	klog.SetOutputBySeverity("ERROR", io.Discard)
 	return nil
 }
 
