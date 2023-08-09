@@ -11,6 +11,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
+	"github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
 var (
@@ -126,14 +127,21 @@ func (w *asyncWorker) AddAfter(item interface{}, duration time.Duration) {
 
 func (w *asyncWorker) handleError(err error, key interface{}) {
 	if err == nil {
+		metrics.ReconcileTotal.WithLabelValues(w.name, metrics.LabelSuccess).Inc()
 		w.queue.Forget(key)
 		return
 	}
 
+	metrics.ReconcileErrors.WithLabelValues(w.name).Inc()
+	metrics.ReconcileTotal.WithLabelValues(w.name, metrics.LabelError).Inc()
+
 	if maxRetries < 0 || w.queue.NumRequeues(key) < maxRetries {
+		metrics.ReconcileTotal.WithLabelValues(w.name, metrics.LabelRequeue).Inc()
 		w.queue.AddRateLimited(key)
 		return
 	}
+
+	metrics.ReconcileTotal.WithLabelValues(w.name, metrics.LabelDrop).Inc()
 
 	klog.V(2).Infof("Dropping resource %q out of the queue: %v", key, err)
 	w.queue.Forget(key)
@@ -146,7 +154,10 @@ func (w *asyncWorker) worker() {
 	}
 	defer w.queue.Done(key)
 
+	start := time.Now()
 	err := w.reconcileFunc(key)
+	metrics.ObserveReconcileTime(w.name, time.Since(start))
+
 	w.handleError(err, key)
 }
 
