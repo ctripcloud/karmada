@@ -9,6 +9,7 @@ import (
 	_ "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/karmada-io/karmada/cmd/controller-manager/app"
+	_ "github.com/karmada-io/karmada/pkg/util/metrics"
 )
 
 func main() {
