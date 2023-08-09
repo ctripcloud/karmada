@@ -1208,12 +1208,12 @@ func (d *ResourceDetector) CleanupLabels(objRef workv1alpha2.ObjectReference, la
 
 // CleanupResourceBindingLabels removes labels from resource binding.
 func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.ResourceBinding, labels ...string) error {
-	bindingLabels := rb.GetLabels()
-	for _, l := range labels {
-		delete(bindingLabels, l)
-	}
-
 	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
+		bindingLabels := rb.GetLabels()
+		for _, l := range labels {
+			delete(bindingLabels, l)
+		}
+
 		rb.SetLabels(bindingLabels)
 		updateErr := d.Client.Update(context.TODO(), rb)
 		if updateErr == nil {
@@ -1233,12 +1233,12 @@ func (d *ResourceDetector) CleanupResourceBindingLabels(rb *workv1alpha2.Resourc
 
 // CleanupClusterResourceBindingLabels removes labels from cluster resource binding.
 func (d *ResourceDetector) CleanupClusterResourceBindingLabels(crb *workv1alpha2.ClusterResourceBinding, labels ...string) error {
-	bindingLabels := crb.GetLabels()
-	for _, l := range labels {
-		delete(bindingLabels, l)
-	}
-
 	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
+		bindingLabels := crb.GetLabels()
+		for _, l := range labels {
+			delete(bindingLabels, l)
+		}
+
 		crb.SetLabels(bindingLabels)
 		updateErr := d.Client.Update(context.TODO(), crb)
 		if updateErr == nil {
