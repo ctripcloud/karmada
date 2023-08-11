@@ -180,3 +180,5 @@ require (
 	sigs.k8s.io/kustomize/api v0.12.1 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.13.9 // indirect
 )
+
+replace sigs.k8s.io/controller-runtime => git.dev.sh.ctripcorp.com/container/controller-runtime v0.14.2-ctrip

@@ -1648,7 +1648,7 @@ sigs.k8s.io/cluster-api/util/contract
 sigs.k8s.io/cluster-api/util/conversion
 sigs.k8s.io/cluster-api/util/secret
 sigs.k8s.io/cluster-api/util/version
-# sigs.k8s.io/controller-runtime v0.14.2
+# sigs.k8s.io/controller-runtime v0.14.2 => git.dev.sh.ctripcorp.com/container/controller-runtime v0.14.2-ctrip
 ## explicit; go 1.19
 sigs.k8s.io/controller-runtime
 sigs.k8s.io/controller-runtime/pkg/builder
@@ -1833,3 +1833,4 @@ sigs.k8s.io/structured-merge-diff/v4/value
 # sigs.k8s.io/yaml v1.3.0
 ## explicit; go 1.12
 sigs.k8s.io/yaml
+# sigs.k8s.io/controller-runtime => git.dev.sh.ctripcorp.com/container/controller-runtime v0.14.2-ctrip
