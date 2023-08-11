@@ -417,7 +417,7 @@ func (d *ResourceDetector) ApplyPolicy(object *unstructured.Unstructured, object
 				group, binding.Namespace, binding.Name, attempt, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
 			bindingOld = bindingCopy.DeepCopy()
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+			bindingCopy.Labels = util.DedupeAndMergeLabels(cleanUpPolicyLabels(bindingCopy.Labels), binding.Labels)
 			bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
@@ -506,7 +506,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					group, binding.Namespace, binding.Name, attempt, bindingOld.ResourceVersion, bindingCopy.ResourceVersion, util.TellDiffForObjects(bindingOld, bindingCopy))
 				bindingOld = bindingCopy.DeepCopy()
 				// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-				bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+				bindingCopy.Labels = util.DedupeAndMergeLabels(cleanUpPolicyLabels(bindingCopy.Labels), binding.Labels)
 				bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 				bindingCopy.Finalizers = binding.Finalizers
 				bindingCopy.Spec.Resource = binding.Spec.Resource
@@ -558,7 +558,7 @@ func (d *ResourceDetector) ApplyClusterPolicy(object *unstructured.Unstructured,
 					"try again later after binding is garbage collected, see https://github.com/karmada-io/karmada/issues/2090")
 			}
 			// Just update necessary fields, especially avoid modifying Spec.Clusters which is scheduling result, if already exists.
-			bindingCopy.Labels = util.DedupeAndMergeLabels(bindingCopy.Labels, binding.Labels)
+			bindingCopy.Labels = util.DedupeAndMergeLabels(cleanUpPolicyLabels(bindingCopy.Labels), binding.Labels)
 			bindingCopy.OwnerReferences = util.MergeOwnerReferences(bindingCopy.OwnerReferences, binding.OwnerReferences)
 			bindingCopy.Finalizers = binding.Finalizers
 			bindingCopy.Spec.Resource = binding.Spec.Resource
