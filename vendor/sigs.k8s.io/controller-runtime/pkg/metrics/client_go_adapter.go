@@ -76,11 +76,13 @@ func init() {
 // registerClientMetrics sets up the client latency metrics from client-go.
 func registerClientMetrics() {
 	// register the metrics with our registry
+	Registry.MustRegister(RequestLatency)
 	Registry.MustRegister(requestResult)
 
 	// register the metrics with client-go
 	clientmetrics.Register(clientmetrics.RegisterOpts{
-		RequestResult: &resultAdapter{metric: requestResult},
+		RequestLatency: &LatencyAdapter{metric: RequestLatency},
+		RequestResult:  &resultAdapter{metric: requestResult},
 	})
 }
 

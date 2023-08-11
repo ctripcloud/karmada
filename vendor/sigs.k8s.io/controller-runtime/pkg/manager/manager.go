@@ -363,6 +363,8 @@ func New(config *rest.Config, options Options) (Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	metrics.CapacityMetric.WithLabelValues("QPS").Set(float64(config.QPS))
+	metrics.CapacityMetric.WithLabelValues("Burst").Set(float64(config.Burst))
 
 	// Create the recorder provider to inject event recorders for the components.
 	// TODO(directxman12): the log for the event provider should have a context (name, tags, etc) specific
