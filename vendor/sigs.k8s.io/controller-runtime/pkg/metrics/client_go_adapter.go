@@ -56,13 +56,15 @@ var (
 	//		})
 	//	}
 	RequestLatency = prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Namespace: MetricsNamespace,
 		Subsystem: RestClientSubsystem,
 		Name:      LatencyKey,
 		Help:      "Request latency in seconds. Broken down by verb and URL.",
-		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 10),
+		Buckets:   prometheus.ExponentialBuckets(0.001, 2, 15),
 	}, []string{"verb", "url"})
 
 	requestResult = prometheus.NewCounterVec(prometheus.CounterOpts{
+		Namespace: MetricsNamespace,
 		Subsystem: RestClientSubsystem,
 		Name:      ResultKey,
 		Help:      "Number of HTTP requests, partitioned by status code, method, and host.",

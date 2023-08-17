@@ -4,17 +4,25 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Metrics capacity used by controller manager such as qps and burst.
+// Metrics namespace used by the controller-runtime.
 const (
-	CapacityKey = "controller_manager_capacity"
+	MetricsNamespace = "controller_runtime"
+)
+
+// Metrics rate limit used by the controller-runtime.
+const (
+	RateLimitSubsystem = "rest_client"
+	RateLimitKey       = "rate_limit"
 )
 
 var (
-	// capacity metrics.
+	// rate limit metrics.
 
 	CapacityMetric = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: CapacityKey,
-		Help: "Capacity values in config to calculate saturation metrics",
+		Namespace: MetricsNamespace,
+		Subsystem: RateLimitSubsystem,
+		Name:      RateLimitKey,
+		Help:      "Rate limit values in config to calculate saturation metrics",
 	}, []string{"name"})
 )
 
