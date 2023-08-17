@@ -58,6 +58,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util/memberclusterinformer"
 	"github.com/karmada-io/karmada/pkg/util/objectwatcher"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 	"github.com/karmada-io/karmada/pkg/util/restmapper"
@@ -173,7 +174,7 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
-	setupControllers(controllerManager, opts, ctx.Done())
+	setupControllers(ctx, controllerManager, opts)
 
 	// blocks until the context is done.
 	if err := controllerManager.Start(ctx); err != nil {
@@ -385,14 +386,17 @@ func startBindingStatusController(ctx controllerscontext.Context) (enabled bool,
 
 func startExecutionController(ctx controllerscontext.Context) (enabled bool, err error) {
 	executionController := &execution.Controller{
-		Client:             ctx.Mgr.GetClient(),
-		EventRecorder:      ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
-		RESTMapper:         ctx.Mgr.GetRESTMapper(),
-		ObjectWatcher:      ctx.ObjectWatcher,
-		PredicateFunc:      helper.NewExecutionPredicate(ctx.Mgr),
-		InformerManager:    genericmanager.GetInstance(),
-		RatelimiterOptions: ctx.Opts.RateLimiterOptions,
+		Ctx:                   ctx.Ctx,
+		Client:                ctx.Mgr.GetClient(),
+		EventRecorder:         ctx.Mgr.GetEventRecorderFor(execution.ControllerName),
+		ObjectWatcher:         ctx.ObjectWatcher,
+		PredicateFunc:         helper.NewExecutionPredicate(ctx.Mgr),
+		RatelimiterOptions:    ctx.Opts.RateLimiterOptions,
+		ConcurrentWorkSyncs:   ctx.Opts.ConcurrentWorkSyncs,
+		StopChan:              ctx.StopChan,
+		MemberClusterInformer: ctx.MemberClusterInformer,
 	}
+	executionController.RunWorkQueue()
 	if err := executionController.SetupWithManager(ctx.Mgr); err != nil {
 		return false, err
 	}
@@ -402,18 +406,14 @@ func startExecutionController(ctx controllerscontext.Context) (enabled bool, err
 func startWorkStatusController(ctx controllerscontext.Context) (enabled bool, err error) {
 	opts := ctx.Opts
 	workStatusController := &status.WorkStatusController{
-		Client:                      ctx.Mgr.GetClient(),
-		EventRecorder:               ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
-		RESTMapper:                  ctx.Mgr.GetRESTMapper(),
-		InformerManager:             genericmanager.GetInstance(),
-		StopChan:                    ctx.StopChan,
-		ObjectWatcher:               ctx.ObjectWatcher,
-		PredicateFunc:               helper.NewExecutionPredicate(ctx.Mgr),
-		ClusterDynamicClientSetFunc: util.NewClusterDynamicClientSet,
-		ClusterCacheSyncTimeout:     opts.ClusterCacheSyncTimeout,
-		ConcurrentWorkStatusSyncs:   opts.ConcurrentWorkSyncs,
-		RateLimiterOptions:          ctx.Opts.RateLimiterOptions,
-		ResourceInterpreter:         ctx.ResourceInterpreter,
+		Client:                    ctx.Mgr.GetClient(),
+		EventRecorder:             ctx.Mgr.GetEventRecorderFor(status.WorkStatusControllerName),
+		StopChan:                  ctx.StopChan,
+		PredicateFunc:             helper.NewExecutionPredicate(ctx.Mgr),
+		ConcurrentWorkStatusSyncs: opts.ConcurrentWorkSyncs,
+		RateLimiterOptions:        ctx.Opts.RateLimiterOptions,
+		ResourceInterpreter:       ctx.ResourceInterpreter,
+		MemberClusterInformer:     ctx.MemberClusterInformer,
 	}
 	workStatusController.RunWorkQueue()
 	if err := workStatusController.SetupWithManager(ctx.Mgr); err != nil {
@@ -544,7 +544,7 @@ func startGracefulEvictionController(ctx controllerscontext.Context) (enabled bo
 }
 
 // setupControllers initialize controllers and setup one by one.
-func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stopChan <-chan struct{}) {
+func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *options.Options) {
 	restConfig := mgr.GetConfig()
 	dynamicClientSet := dynamic.NewForConfigOrDie(restConfig)
 	discoverClientSet := discovery.NewDiscoveryClientForConfigOrDie(restConfig)
@@ -562,14 +562,14 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		skippedPropagatingNamespaces[ns] = struct{}{}
 	}
 
-	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, stopChan)
+	controlPlaneInformerManager := genericmanager.NewSingleClusterInformerManager(dynamicClientSet, 0, ctx.Done())
 
 	// We need a service lister to build a resource interpreter with `ClusterIPServiceResolver`
 	// witch allows connection to the customized interpreter webhook without a cluster DNS service.
 	sharedFactory := informers.NewSharedInformerFactory(kubeClientSet, 0)
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
-	sharedFactory.Start(stopChan)
-	sharedFactory.WaitForCacheSync(stopChan)
+	sharedFactory.Start(ctx.Done())
+	sharedFactory.WaitForCacheSync(ctx.Done())
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
@@ -577,6 +577,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	}
 
 	objectWatcher := objectwatcher.NewObjectWatcher(mgr.GetClient(), mgr.GetRESTMapper(), util.NewClusterDynamicClientSet, resourceInterpreter)
+	memberClusterInformer := memberclusterinformer.NewMemberClusterInformer(mgr.GetClient(), mgr.GetRESTMapper(), genericmanager.GetInstance(), opts.ClusterCacheSyncTimeout, util.NewClusterDynamicClientSet)
 
 	resourceDetector := &detector.ResourceDetector{
 		DiscoveryClientSet:                      discoverClientSet,
@@ -593,6 +594,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		ConcurrentResourceTemplateSyncs:         opts.ConcurrentResourceTemplateSyncs,
 		RateLimiterOptions:                      opts.RateLimiterOpts,
 	}
+
 	if err := mgr.Add(resourceDetector); err != nil {
 		klog.Fatalf("Failed to setup resource detector: %v", err)
 	}
@@ -613,9 +615,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 		}
 	}
 
-	setupClusterAPIClusterDetector(mgr, opts, stopChan)
+	setupClusterAPIClusterDetector(mgr, opts, ctx.Done())
 	controllerContext := controllerscontext.Context{
 		Mgr:           mgr,
+		Ctx:           ctx,
 		ObjectWatcher: objectWatcher,
 		Opts: controllerscontext.Options{
 			Controllers:                       opts.Controllers,
@@ -638,11 +641,12 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 			GracefulEvictionTimeout:           opts.GracefulEvictionTimeout,
 			EnableClusterResourceModeling:     opts.EnableClusterResourceModeling,
 		},
-		StopChan:                    stopChan,
+		StopChan:                    ctx.Done(),
 		DynamicClientSet:            dynamicClientSet,
 		OverrideManager:             overrideManager,
 		ControlPlaneInformerManager: controlPlaneInformerManager,
 		ResourceInterpreter:         resourceInterpreter,
+		MemberClusterInformer:       memberClusterInformer,
 	}
 
 	if err := controllers.StartControllers(controllerContext, controllersDisabledByDefault); err != nil {
@@ -651,7 +655,7 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 
 	// Ensure the InformerManager stops when the stop channel closes
 	go func() {
-		<-stopChan
+		<-ctx.Done()
 		genericmanager.StopInstance()
 	}()
 }
