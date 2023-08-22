@@ -322,7 +322,7 @@ func (c *WorkStatusController) mergeStatus(statuses []workv1alpha1.ManifestStatu
 func (c *WorkStatusController) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.eventHandler = fedinformer.NewHandlerOnEvents(c.onAdd, c.onUpdate, nil)
 
-	return controllerruntime.NewControllerManagedBy(mgr).Named("build-resource-informers for work").
+	return controllerruntime.NewControllerManagedBy(mgr).Named("work-status build-member-cluster-informer").
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithOptions(controller.Options{
 			RateLimiter: ratelimiterflag.DefaultControllerRateLimiter(c.RateLimiterOptions),
