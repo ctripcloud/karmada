@@ -168,7 +168,7 @@ func generateKey(obj interface{}) (util.QueueKey, error) {
 func (c *Controller) SetupWithManager(mgr controllerruntime.Manager) error {
 	c.eventHandler = fedinformer.NewHandlerOnEvents(nil, c.onUpdate, c.onDelete)
 
-	return controllerruntime.NewControllerManagedBy(mgr).Named("work").
+	return controllerruntime.NewControllerManagedBy(mgr).Named("work-execution build-member-cluster-informer").
 		For(&workv1alpha1.Work{}, builder.WithPredicates(c.PredicateFunc)).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
