@@ -3,7 +3,6 @@ package execution
 import (
 	"context"
 	"fmt"
-	"reflect"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -401,27 +400,12 @@ func (c *Controller) updateAppliedConditionIfNeed(work *workv1alpha1.Work, statu
 
 	workOld := work.DeepCopy()
 	attempt := 0
-	// needUpdateCondition judges if the Applied condition needs to update.
-	needUpdateCondition := func() bool {
-		lastWorkAppliedCondition := meta.FindStatusCondition(work.Status.Conditions, workv1alpha1.WorkApplied).DeepCopy()
-
-		if lastWorkAppliedCondition != nil {
-			lastWorkAppliedCondition.LastTransitionTime = newWorkAppliedCondition.LastTransitionTime
-
-			return !reflect.DeepEqual(newWorkAppliedCondition, *lastWorkAppliedCondition)
-		}
-
-		return true
-	}
 
 	return retry.RetryOnConflict(backoff.Retry, func() (err error) {
 		attempt++
 		klog.Infof("[Group: %s] Attempt to create or update work %s/%s for %d times, ResoureceVersion: OLD: %s, CUR: %s; Diff: %s",
 			group, work.Namespace, work.Name, attempt, workOld.ResourceVersion, work.ResourceVersion, util.TellDiffForObjects(workOld, work))
 		workOld = work.DeepCopy()
-		if !needUpdateCondition() {
-			return nil
-		}
 
 		meta.SetStatusCondition(&work.Status.Conditions, newWorkAppliedCondition)
 		updateErr := c.Status().Update(context.TODO(), work)
