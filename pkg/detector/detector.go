@@ -57,7 +57,7 @@ type ResourceDetector struct {
 	InformerManager              genericmanager.SingleClusterInformerManager
 	EventHandler                 cache.ResourceEventHandler
 	Processor                    util.AsyncWorker
-	SkippedResourceConfig        *util.SkippedResourceConfig
+	ManagedResourceConfig        *util.ManagedResourceConfig
 	SkippedPropagatingNamespaces map[string]struct{}
 	// ResourceInterpreter knows the details of resource structure.
 	ResourceInterpreter resourceinterpreter.ResourceInterpreter
@@ -162,7 +162,7 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 	wait.Until(func() {
 		newResources := lifted.GetDeletableResources(d.DiscoveryClientSet)
 		for r := range newResources {
-			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || d.gvrDisabled(r) {
+			if d.InformerManager.IsHandlerExist(r, d.EventHandler) || !d.gvrEnabled(r) {
 				continue
 			}
 			klog.Infof("Setup informer for %s", r.String())
@@ -172,16 +172,16 @@ func (d *ResourceDetector) discoverResources(period time.Duration) {
 	}, period, d.stopCh)
 }
 
-// gvrDisabled returns whether GroupVersionResource is disabled.
-func (d *ResourceDetector) gvrDisabled(gvr schema.GroupVersionResource) bool {
-	if d.SkippedResourceConfig == nil {
+// gvrEnabled returns whether GroupVersionResource is enabled.
+func (d *ResourceDetector) gvrEnabled(gvr schema.GroupVersionResource) bool {
+	if d.ManagedResourceConfig == nil {
 		return false
 	}
 
-	if d.SkippedResourceConfig.GroupVersionDisabled(gvr.GroupVersion()) {
+	if d.ManagedResourceConfig.GroupVersionEnabled(gvr.GroupVersion()) {
 		return true
 	}
-	if d.SkippedResourceConfig.GroupDisabled(gvr.Group) {
+	if d.ManagedResourceConfig.GroupEnabled(gvr.Group) {
 		return true
 	}
 
@@ -192,12 +192,12 @@ func (d *ResourceDetector) gvrDisabled(gvr schema.GroupVersionResource) bool {
 	}
 
 	for _, gvk := range gvks {
-		if d.SkippedResourceConfig.GroupVersionKindDisabled(gvk) {
-			return true
+		if !d.ManagedResourceConfig.GroupVersionKindEnabled(gvk) {
+			return false
 		}
 	}
 
-	return false
+	return true
 }
 
 // NeedLeaderElection implements LeaderElectionRunnable interface.

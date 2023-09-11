@@ -4,57 +4,32 @@ import (
 	"fmt"
 	"strings"
 
-	coordinationv1 "k8s.io/api/coordination/v1"
-	eventsv1 "k8s.io/api/events/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	clusterv1alpha1 "github.com/karmada-io/karmada/pkg/apis/cluster/v1alpha1"
-	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
-	networkingv1alpha1 "github.com/karmada-io/karmada/pkg/apis/networking/v1alpha1"
-	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 )
 
-// SkippedResourceConfig represents the configuration that identifies the API resources should be skipped from propagating.
-type SkippedResourceConfig struct {
-	// Groups holds a collection of API group, all resources under this group will be skipped.
+// ManagedResourceConfig represents the configuration that identifies the API resources should be managed from propagating.
+type ManagedResourceConfig struct {
+	// Groups holds a collection of API group, all resources under this group will be managed.
 	Groups map[string]struct{}
-	// GroupVersions holds a collection of API GroupVersion, all resource under this GroupVersion will be skipped.
+	// GroupVersions holds a collection of API GroupVersion, all resource under this GroupVersion will be managed.
 	GroupVersions map[schema.GroupVersion]struct{}
-	// GroupVersionKinds holds a collection of resource that should be skipped.
+	// GroupVersionKinds holds a collection of resource that should be managed.
 	GroupVersionKinds map[schema.GroupVersionKind]struct{}
 }
 
-var corev1EventGVK = schema.GroupVersionKind{
-	Group:   "",
-	Version: "v1",
-	Kind:    "Event",
-}
-
-// NewSkippedResourceConfig to create SkippedResourceConfig
-func NewSkippedResourceConfig() *SkippedResourceConfig {
-	r := &SkippedResourceConfig{
+// NewManagedResourceConfig to create ManagedResourceConfig, use nil default GVK to make managed apis visible in args
+func NewManagedResourceConfig() *ManagedResourceConfig {
+	r := &ManagedResourceConfig{
 		Groups:            map[string]struct{}{},
 		GroupVersions:     map[schema.GroupVersion]struct{}{},
 		GroupVersionKinds: map[schema.GroupVersionKind]struct{}{},
 	}
-	// disable karmada group by default
-	r.DisableGroup(clusterv1alpha1.GroupVersion.Group)
-	r.DisableGroup(policyv1alpha1.GroupVersion.Group)
-	r.DisableGroup(workv1alpha1.GroupVersion.Group)
-	r.DisableGroup(configv1alpha1.GroupVersion.Group)
-	r.DisableGroup(networkingv1alpha1.GroupVersion.Group)
-	// disable event by default
-	r.DisableGroup(eventsv1.GroupName)
-	r.DisableGroupVersionKind(corev1EventGVK)
 
-	// disable Lease by default
-	r.DisableGroupVersion(coordinationv1.SchemeGroupVersion)
 	return r
 }
 
-// Parse parses the --skipped-propagating-apis input.
-func (r *SkippedResourceConfig) Parse(c string) error {
+// Parse parses the --managed-propagating-apis input.
+func (r *ManagedResourceConfig) Parse(c string) error {
 	// default(empty) input
 	if c == "" {
 		return nil
@@ -63,14 +38,14 @@ func (r *SkippedResourceConfig) Parse(c string) error {
 	tokens := strings.Split(c, ";")
 	for _, token := range tokens {
 		if err := r.parseSingle(token); err != nil {
-			return fmt.Errorf("parse --skipped-propagating-apis %w", err)
+			return fmt.Errorf("parse --managed-propagating-apis %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (r *SkippedResourceConfig) parseSingle(token string) error {
+func (r *ManagedResourceConfig) parseSingle(token string) error {
 	switch strings.Count(token, "/") {
 	// Assume user don't want to skip the 'core'(no group name) group.
 	// So, it should be the case "<group>".
@@ -137,41 +112,41 @@ func (r *SkippedResourceConfig) parseSingle(token string) error {
 	return nil
 }
 
-// GroupVersionDisabled returns whether GroupVersion is disabled.
-func (r *SkippedResourceConfig) GroupVersionDisabled(gv schema.GroupVersion) bool {
+// GroupVersionEnabled returns whether GroupVersion is enabled.
+func (r *ManagedResourceConfig) GroupVersionEnabled(gv schema.GroupVersion) bool {
 	if _, ok := r.GroupVersions[gv]; ok {
 		return true
 	}
 	return false
 }
 
-// GroupVersionKindDisabled returns whether GroupVersionKind is disabled.
-func (r *SkippedResourceConfig) GroupVersionKindDisabled(gvk schema.GroupVersionKind) bool {
+// GroupVersionKindEnabled returns whether GroupVersionKind is enabled.
+func (r *ManagedResourceConfig) GroupVersionKindEnabled(gvk schema.GroupVersionKind) bool {
 	if _, ok := r.GroupVersionKinds[gvk]; ok {
 		return true
 	}
 	return false
 }
 
-// GroupDisabled returns whether Group is disabled.
-func (r *SkippedResourceConfig) GroupDisabled(g string) bool {
+// GroupEnabled returns whether Group is enabled.
+func (r *ManagedResourceConfig) GroupEnabled(g string) bool {
 	if _, ok := r.Groups[g]; ok {
 		return true
 	}
 	return false
 }
 
-// DisableGroup to disable group.
-func (r *SkippedResourceConfig) DisableGroup(g string) {
+// EnableGroup to enable group.
+func (r *ManagedResourceConfig) EnableGroup(g string) {
 	r.Groups[g] = struct{}{}
 }
 
-// DisableGroupVersion to disable GroupVersion.
-func (r *SkippedResourceConfig) DisableGroupVersion(gv schema.GroupVersion) {
+// EnableGroupVersion to enable GroupVersion.
+func (r *ManagedResourceConfig) EnableGroupVersion(gv schema.GroupVersion) {
 	r.GroupVersions[gv] = struct{}{}
 }
 
-// DisableGroupVersionKind to disable GroupVersionKind.
-func (r *SkippedResourceConfig) DisableGroupVersionKind(gvk schema.GroupVersionKind) {
+// EnableGroupVersionKind to enable GroupVersionKind.
+func (r *ManagedResourceConfig) EnableGroupVersionKind(gvk schema.GroupVersionKind) {
 	r.GroupVersionKinds[gvk] = struct{}{}
 }

@@ -14,7 +14,7 @@ type ModifyOptions func(option *Options)
 // New an Options with default parameters
 func New(modifyOptions ModifyOptions) Options {
 	option := Options{
-		SkippedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
+		ManagedPropagatingAPIs:       "cluster.karmada.io;policy.karmada.io;work.karmada.io",
 		SecurePort:                   8090,
 		ClusterStatusUpdateFrequency: metav1.Duration{Duration: 10 * time.Second},
 		ClusterLeaseDuration:         metav1.Duration{Duration: 10 * time.Second},
@@ -45,11 +45,11 @@ func TestValidateControllerManagerConfiguration(t *testing.T) {
 		opt          Options
 		expectedErrs field.ErrorList
 	}{
-		"invalid SkippedPropagatingAPIs": {
+		"invalid ManagedPropagatingAPIs": {
 			opt: New(func(options *Options) {
-				options.SkippedPropagatingAPIs = "a/b/c/d?"
+				options.ManagedPropagatingAPIs = "a/b/c/d?"
 			}),
-			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("SkippedPropagatingAPIs"), "a/b/c/d?", "Invalid API string")},
+			expectedErrs: field.ErrorList{field.Invalid(newPath.Child("ManagedPropagatingAPIs"), "a/b/c/d?", "Invalid API string")},
 		},
 		"invalid SecurePort": {
 			opt: New(func(options *Options) {

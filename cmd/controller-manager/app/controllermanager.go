@@ -551,8 +551,8 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 	kubeClientSet := kubeclientset.NewForConfigOrDie(restConfig)
 
 	overrideManager := overridemanager.New(mgr.GetClient(), mgr.GetEventRecorderFor(overridemanager.OverrideManagerName))
-	skippedResourceConfig := util.NewSkippedResourceConfig()
-	if err := skippedResourceConfig.Parse(opts.SkippedPropagatingAPIs); err != nil {
+	managedResourceConfig := util.NewManagedResourceConfig()
+	if err := managedResourceConfig.Parse(opts.ManagedPropagatingAPIs); err != nil {
 		// The program will never go here because the parameters have been checked
 		return
 	}
@@ -585,7 +585,7 @@ func setupControllers(ctx context.Context, mgr controllerruntime.Manager, opts *
 		InformerManager:                         controlPlaneInformerManager,
 		RESTMapper:                              mgr.GetRESTMapper(),
 		DynamicClient:                           dynamicClientSet,
-		SkippedResourceConfig:                   skippedResourceConfig,
+		ManagedResourceConfig:                   managedResourceConfig,
 		SkippedPropagatingNamespaces:            skippedPropagatingNamespaces,
 		ResourceInterpreter:                     resourceInterpreter,
 		EventRecorder:                           mgr.GetEventRecorderFor("resource-detector"),
