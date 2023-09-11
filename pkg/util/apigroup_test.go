@@ -6,7 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func TestSkippedResourceConfigGVKParse(t *testing.T) {
+func TestManagedResourceConfigGVKParse(t *testing.T) {
 	tests := []struct {
 		input string
 		out   []schema.GroupVersionKind
@@ -37,12 +37,12 @@ func TestSkippedResourceConfigGVKParse(t *testing.T) {
 			}},
 	}
 	for _, test := range tests {
-		r := NewSkippedResourceConfig()
+		r := NewManagedResourceConfig()
 		if err := r.Parse(test.input); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for i, o := range test.out {
-			ok := r.GroupVersionKindDisabled(o)
+			ok := r.GroupVersionKindEnabled(o)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, o)
 			}
@@ -76,12 +76,12 @@ func TestResourceConfigGVParse(t *testing.T) {
 			}},
 	}
 	for _, test := range tests {
-		r := NewSkippedResourceConfig()
+		r := NewManagedResourceConfig()
 		if err := r.Parse(test.input); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for i, o := range test.out {
-			ok := r.GroupVersionDisabled(o)
+			ok := r.GroupVersionEnabled(o)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, o)
 			}
@@ -89,7 +89,7 @@ func TestResourceConfigGVParse(t *testing.T) {
 	}
 }
 
-func TestSkippedResourceConfigGroupParse(t *testing.T) {
+func TestManagedResourceConfigGroupParse(t *testing.T) {
 	tests := []struct {
 		input string
 		out   []string
@@ -101,12 +101,12 @@ func TestSkippedResourceConfigGroupParse(t *testing.T) {
 			}},
 	}
 	for _, test := range tests {
-		r := NewSkippedResourceConfig()
+		r := NewManagedResourceConfig()
 		if err := r.Parse(test.input); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for i, o := range test.out {
-			ok := r.GroupDisabled(o)
+			ok := r.GroupEnabled(o)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, o)
 			}
@@ -114,14 +114,14 @@ func TestSkippedResourceConfigGroupParse(t *testing.T) {
 	}
 }
 
-func TestSkippedResourceConfigMixedParse(t *testing.T) {
+func TestManagedResourceConfigMixedParse(t *testing.T) {
 	tests := []struct {
 		input string
-		out   SkippedResourceConfig
+		out   ManagedResourceConfig
 	}{
 		{
 			input: "v1/Node,Pod;networking.k8s.io/v1beta1/Ingress,IngressClass;networking.k8s.io;test.com/v1",
-			out: SkippedResourceConfig{
+			out: ManagedResourceConfig{
 				Groups: map[string]struct{}{
 					"networking.k8s.io": {},
 				},
@@ -156,87 +156,29 @@ func TestSkippedResourceConfigMixedParse(t *testing.T) {
 			}},
 	}
 	for i, test := range tests {
-		r := NewSkippedResourceConfig()
+		r := NewManagedResourceConfig()
 		if err := r.Parse(test.input); err != nil {
 			t.Fatalf("Unexpected error: %v", err)
 		}
 		for g := range r.Groups {
-			ok := r.GroupDisabled(g)
+			ok := r.GroupEnabled(g)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, g)
 			}
 		}
 
 		for gv := range r.GroupVersions {
-			ok := r.GroupVersionDisabled(gv)
+			ok := r.GroupVersionEnabled(gv)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, gv)
 			}
 		}
 
 		for gvk := range r.GroupVersionKinds {
-			ok := r.GroupVersionKindDisabled(gvk)
+			ok := r.GroupVersionKindEnabled(gvk)
 			if !ok {
 				t.Errorf("%d: unexpected error: %v", i, gvk)
 			}
-		}
-	}
-}
-
-func TestDefaultSkippedResourceConfigGroupParse(t *testing.T) {
-	tests := []struct {
-		input string
-		out   []string
-	}{
-		{
-			input: "",
-			out: []string{
-				"cluster.karmada.io", "policy.karmada.io", "work.karmada.io", "config.karmada.io", "events.k8s.io",
-			}},
-	}
-	for _, test := range tests {
-		r := NewSkippedResourceConfig()
-		if err := r.Parse(test.input); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		for i, o := range test.out {
-			ok := r.GroupDisabled(o)
-			if !ok {
-				t.Errorf("%d: unexpected error: %v", i, o)
-			}
-		}
-		ok := r.GroupDisabled("")
-		if ok {
-			t.Error("unexpected error: v1")
-		}
-	}
-}
-
-func TestDefaultSkippedResourceConfigGroupVersionKindParse(t *testing.T) {
-	tests := []struct {
-		input string
-		out   []schema.GroupVersionKind
-	}{
-		{
-			input: "",
-			out: []schema.GroupVersionKind{
-				corev1EventGVK,
-			}},
-	}
-	for _, test := range tests {
-		r := NewSkippedResourceConfig()
-		if err := r.Parse(test.input); err != nil {
-			t.Fatalf("Unexpected error: %v", err)
-		}
-		for i, o := range test.out {
-			ok := r.GroupVersionKindDisabled(o)
-			if !ok {
-				t.Errorf("%d: unexpected error: %v", i, o)
-			}
-		}
-		ok := r.GroupDisabled("")
-		if ok {
-			t.Error("unexpected error: v1")
 		}
 	}
 }

@@ -11,9 +11,9 @@ func (o *Options) Validate() field.ErrorList {
 	errs := field.ErrorList{}
 	newPath := field.NewPath("Options")
 
-	skippedResourceConfig := util.NewSkippedResourceConfig()
-	if err := skippedResourceConfig.Parse(o.SkippedPropagatingAPIs); err != nil {
-		errs = append(errs, field.Invalid(newPath.Child("SkippedPropagatingAPIs"), o.SkippedPropagatingAPIs, "Invalid API string"))
+	managedResourceConfig := util.NewManagedResourceConfig()
+	if err := managedResourceConfig.Parse(o.ManagedPropagatingAPIs); err != nil {
+		errs = append(errs, field.Invalid(newPath.Child("ManagedPropagatingAPIs"), o.ManagedPropagatingAPIs, "Invalid API string"))
 	}
 	if o.SecurePort < 0 || o.SecurePort > 65535 {
 		errs = append(errs, field.Invalid(newPath.Child("SecurePort"), o.SecurePort, "must be between 0 and 65535 inclusive"))
