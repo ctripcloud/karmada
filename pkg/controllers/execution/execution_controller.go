@@ -112,8 +112,14 @@ func (c *Controller) Reconcile(ctx context.Context, req controllerruntime.Reques
 }
 
 func (c *Controller) onUpdate(old, cur interface{}) {
-	oldObj := old.(*unstructured.Unstructured)
-	curObj := cur.(*unstructured.Unstructured)
+	oldObj, ok := old.(*unstructured.Unstructured)
+	if !ok {
+		return
+	}
+	curObj, ok := cur.(*unstructured.Unstructured)
+	if !ok {
+		return
+	}
 
 	oldObjCopy := oldObj.DeepCopy()
 	curObjCopy := curObj.DeepCopy()
@@ -129,7 +135,18 @@ func (c *Controller) onUpdate(old, cur interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	curObj := obj.(*unstructured.Unstructured)
+	curObj, ok := obj.(*unstructured.Unstructured)
+	if !ok {
+		delObj, ok := obj.(cache.DeletedFinalStateUnknown)
+		if !ok {
+			return
+		}
+
+		curObj, ok = delObj.Obj.(*unstructured.Unstructured)
+		if !ok {
+			return
+		}
+	}
 
 	c.worker.Enqueue(curObj)
 }
