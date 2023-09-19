@@ -313,6 +313,12 @@ func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
 
 // OnDelete handles object delete event and push the object to queue.
 func (d *ResourceDetector) OnDelete(obj interface{}) {
+	if deleted, ok := obj.(*cache.DeletedFinalStateUnknown); ok {
+		if deleted.Obj == nil {
+			return
+		}
+		obj = deleted.Obj
+	}
 	d.OnAdd(obj)
 }
 
@@ -872,6 +878,9 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 
 // OnPropagationPolicyDelete handles object delete event and push the object to queue.
 func (d *ResourceDetector) OnPropagationPolicyDelete(obj interface{}) {
+	if deleted, ok := obj.(*cache.DeletedFinalStateUnknown); ok {
+		obj = deleted.Obj
+	}
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
 		return
@@ -936,6 +945,9 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 
 // OnClusterPropagationPolicyDelete handles object delete event and push the object to queue.
 func (d *ResourceDetector) OnClusterPropagationPolicyDelete(obj interface{}) {
+	if deleted, ok := obj.(*cache.DeletedFinalStateUnknown); ok {
+		obj = deleted.Obj
+	}
 	key, err := ClusterWideKeyFunc(obj)
 	if err != nil {
 		return

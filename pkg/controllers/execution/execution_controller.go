@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/tools/cache"
@@ -135,17 +136,15 @@ func (c *Controller) onUpdate(old, cur interface{}) {
 }
 
 func (c *Controller) onDelete(obj interface{}) {
-	curObj, ok := obj.(*unstructured.Unstructured)
+	if deleted, ok := obj.(*cache.DeletedFinalStateUnknown); ok {
+		if deleted.Obj == nil {
+			return
+		}
+		obj = deleted.Obj
+	}
+	curObj, ok := obj.(runtime.Object)
 	if !ok {
-		delObj, ok := obj.(cache.DeletedFinalStateUnknown)
-		if !ok {
-			return
-		}
-
-		curObj, ok = delObj.Obj.(*unstructured.Unstructured)
-		if !ok {
-			return
-		}
+		return
 	}
 
 	c.worker.Enqueue(curObj)
