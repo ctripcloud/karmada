@@ -101,6 +101,12 @@ func (d *ClusterDetector) OnUpdate(oldObj, newObj interface{}) {
 
 // OnDelete handles object delete event and push the object to queue.
 func (d *ClusterDetector) OnDelete(obj interface{}) {
+	if deleted, ok := obj.(*cache.DeletedFinalStateUnknown); ok {
+		if deleted.Obj == nil {
+			return
+		}
+		obj = deleted.Obj
+	}
 	d.OnAdd(obj)
 }
 
