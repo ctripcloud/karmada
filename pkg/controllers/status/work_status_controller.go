@@ -101,14 +101,22 @@ func (c *WorkStatusController) Reconcile(ctx context.Context, req controllerrunt
 }
 
 func (c *WorkStatusController) onAdd(obj interface{}) {
-	curObj := obj.(runtime.Object)
+	curObj, ok := obj.(runtime.Object)
+	if !ok {
+		return
+	}
+
 	c.worker.Enqueue(curObj)
 }
 
 func (c *WorkStatusController) onUpdate(old, cur interface{}) {
+	curObj, ok := cur.(runtime.Object)
+	if !ok {
+		return
+	}
+
 	// Still need to compare the whole object because the interpreter is able to take any part of object to reflect status.
 	if !reflect.DeepEqual(old, cur) {
-		curObj := cur.(runtime.Object)
 		c.worker.Enqueue(curObj)
 	}
 }
