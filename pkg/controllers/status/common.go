@@ -69,13 +69,23 @@ func updateResourceStatus(
 		klog.Errorf("Failed to aggregate status for resource(%s/%s/%s, Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
-	if reflect.DeepEqual(resource, newObj) {
+	newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
+
+	clusterObj, err := dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).Get(context.TODO(), resource.GetName(), metav1.GetOptions{})
+	if err != nil {
+		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+		return err
+	}
+	clusterStatus, _, _ := unstructured.NestedFieldNoCopy(clusterObj.Object, "status")
+	if reflect.DeepEqual(clusterStatus, newStatus) {
 		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date.", gvr, resource.GetNamespace(), resource.GetName())
 		return nil
 	}
 
-	if _, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).UpdateStatus(context.TODO(), newObj, metav1.UpdateOptions{}); err != nil {
-		klog.Errorf("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+	_ = unstructured.SetNestedField(clusterObj.Object, newStatus, "status")
+	_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
+	if err != nil {
+		klog.Error("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
 	klog.V(3).Infof("Update resource(%s/%s/%s) status successfully.", gvr, resource.GetNamespace(), resource.GetName())
