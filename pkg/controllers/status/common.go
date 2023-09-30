@@ -2,12 +2,15 @@ package status
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -69,22 +72,26 @@ func updateResourceStatus(
 		klog.Errorf("Failed to aggregate status for resource(%s/%s/%s, Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
-	newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
 
-	clusterObj, err := dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).Get(context.TODO(), resource.GetName(), metav1.GetOptions{})
-	if err != nil {
-		klog.Errorf("Failed to get resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
-		return err
-	}
-	clusterStatus, _, _ := unstructured.NestedFieldNoCopy(clusterObj.Object, "status")
-	if reflect.DeepEqual(clusterStatus, newStatus) {
+	oldStatus, _, _ := unstructured.NestedFieldNoCopy(resource.Object, "status")
+	newStatus, _, _ := unstructured.NestedFieldNoCopy(newObj.Object, "status")
+	if reflect.DeepEqual(oldStatus, newStatus) {
 		klog.V(3).Infof("Ignore update resource(%s/%s/%s) status as up to date.", gvr, resource.GetNamespace(), resource.GetName())
 		return nil
 	}
 
-	_ = unstructured.SetNestedField(clusterObj.Object, newStatus, "status")
-	_, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).UpdateStatus(context.TODO(), clusterObj, metav1.UpdateOptions{})
-	if err != nil {
+	var statusPatch []byte
+	if newStatus != nil {
+		j, err := json.Marshal(newStatus)
+		if err != nil {
+			klog.Errorf("Failed to marshal status for resource(%s/%s/%s, Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
+			return err
+		}
+		statusPatch = []byte(fmt.Sprintf(`[{"op": "replace", "path": "/status", "value": %s}]`, j))
+	} else {
+		statusPatch = []byte(`[{"op": "remove", "path": "/status"}]`)
+	}
+	if _, err = dynamicClient.Resource(gvr).Namespace(resource.GetNamespace()).Patch(context.TODO(), resource.GetName(), types.JSONPatchType, statusPatch, metav1.PatchOptions{}, "status"); err != nil {
 		klog.Error("Failed to update resource(%s/%s/%s), Error: %v", gvr, resource.GetNamespace(), resource.GetName(), err)
 		return err
 	}
