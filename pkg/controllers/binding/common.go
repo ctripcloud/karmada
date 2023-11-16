@@ -6,6 +6,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
@@ -17,6 +19,65 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/pkg/util/overridemanager"
 )
+
+var bindingPredicateFn = predicate.Funcs{
+	CreateFunc: func(e event.CreateEvent) bool {
+		var placement *policyv1alpha1.Placement
+
+		switch binding := e.Object.(type) {
+		case *workv1alpha2.ResourceBinding:
+			placement = binding.Spec.Placement
+		case *workv1alpha2.ClusterResourceBinding:
+			placement = binding.Spec.Placement
+		default:
+			return false
+		}
+
+		// A binding with placement should be processed after scheduling.
+		return placement == nil
+	},
+	UpdateFunc: func(e event.UpdateEvent) bool {
+		var oldBindingStatus, newBindingStatus *workv1alpha2.ResourceBindingStatus
+		var newPlacement *policyv1alpha1.Placement
+
+		switch binding := e.ObjectNew.(type) {
+		case *workv1alpha2.ResourceBinding:
+			newPlacement = binding.Spec.Placement
+			newBindingStatus = &binding.Status
+		case *workv1alpha2.ClusterResourceBinding:
+			newPlacement = binding.Spec.Placement
+			newBindingStatus = &binding.Status
+		default:
+			return false
+		}
+
+		switch binding := e.ObjectOld.(type) {
+		case *workv1alpha2.ResourceBinding:
+			oldBindingStatus = &binding.Status
+		case *workv1alpha2.ClusterResourceBinding:
+			oldBindingStatus = &binding.Status
+		default:
+			return false
+		}
+
+		if !e.ObjectNew.GetDeletionTimestamp().IsZero() {
+			return true
+		}
+
+		// A binding without placement should be processed if generation changed.
+		if newPlacement == nil {
+			return predicate.GenerationChangedPredicate{}.Update(e)
+		}
+
+		// A binding with placement should be processed after scheduling.
+		if e.ObjectNew.GetGeneration() != newBindingStatus.SchedulerObservedGeneration {
+			return false
+		}
+
+		// A binding been scheduled should be processed if generation changed.
+		return oldBindingStatus.SchedulerObservedGeneration != newBindingStatus.SchedulerObservedGeneration
+	},
+}
 
 // ensureWork ensure Work to be created or updated.
 func ensureWork(
