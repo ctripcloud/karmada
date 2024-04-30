@@ -214,6 +214,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 		if !applied {
 			aggregatedStatus := workv1alpha2.AggregatedStatusItem{
 				ClusterName:    clusterName,
+				WorkName:       work.Name,
 				Applied:        applied,
 				AppliedMessage: appliedMsg,
 				Health:         workv1alpha2.ResourceUnknown,
@@ -225,6 +226,7 @@ func assembleWorkStatus(works []workv1alpha1.Work, workload *unstructured.Unstru
 		// resources with no status,only record whether the propagation is successful in work
 		aggregatedStatus := workv1alpha2.AggregatedStatusItem{
 			ClusterName: clusterName,
+			WorkName:    work.Name,
 			Applied:     applied,
 			Health:      workv1alpha2.ResourceUnknown,
 		}

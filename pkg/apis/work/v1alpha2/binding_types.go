@@ -327,6 +327,11 @@ type AggregatedStatusItem struct {
 	// +required
 	ClusterName string `json:"clusterName"`
 
+	// WorkName represents the name of the work object in the karmada-es-<ClusterName> namespace,
+	// the object is responsible for the deployment of resources on member clusters.
+	// +optional
+	WorkName string `json:"workName,omitempty"`
+
 	// Status reflects running status of current manifest.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional

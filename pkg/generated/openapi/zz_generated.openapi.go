@@ -6378,6 +6378,13 @@ func schema_pkg_apis_work_v1alpha2_AggregatedStatusItem(ref common.ReferenceCall
 							Format:      "",
 						},
 					},
+					"workName": {
+						SchemaProps: spec.SchemaProps{
+							Description: "WorkName represents the name of the work object in the karmada-es-<ClusterName> namespace, the object is responsible for the deployment of resources on member clusters.",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Status reflects running status of current manifest.",

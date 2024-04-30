@@ -1218,6 +1218,11 @@ spec:
                       description: Status reflects running status of current manifest.
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    workName:
+                      description: WorkName represents the name of the work object
+                        in the karmada-es-<ClusterName> namespace, the object is responsible
+                        for the deployment of resources on member clusters.
+                      type: string
                   required:
                   - clusterName
                   type: object

@@ -19783,6 +19783,10 @@
         "status": {
           "description": "Status reflects running status of current manifest.",
           "$ref": "#/definitions/io.k8s.apimachinery.pkg.runtime.RawExtension"
+        },
+        "workName": {
+          "description": "WorkName represents the name of the work object in the karmada-es-\u003cClusterName\u003e namespace, the object is responsible for the deployment of resources on member clusters.",
+          "type": "string"
         }
       }
     },
