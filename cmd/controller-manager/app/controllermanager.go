@@ -741,6 +741,10 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	sharedFactory.Start(stopChan)
 	sharedFactory.WaitForCacheSync(stopChan)
 
+	if err := helper.IndexWork(context.TODO(), mgr); err != nil {
+		klog.Fatalf("Failed to index Work: %v", err)
+	}
+
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {
 		klog.Fatalf("Failed to setup custom resource interpreter: %v", err)
