@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/rest"
 	mapper "k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/kind/pkg/cluster"
 	kindexec "sigs.k8s.io/kind/pkg/exec"
@@ -48,6 +49,7 @@ import (
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
+	utilhelper "github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	"github.com/karmada-io/karmada/test/helper"
 )
@@ -114,6 +116,7 @@ var (
 	discoveryClient       *discovery.DiscoveryClient
 	restMapper            meta.RESTMapper
 	controlPlaneClient    client.Client
+	controllerManager     ctrl.Manager
 	testNamespace         string
 	clusterProvider       *cluster.Provider
 	clusterLabels         = map[string]string{"location": "CHN"}
@@ -172,6 +175,11 @@ var _ = ginkgo.SynchronizedBeforeSuite(func() []byte {
 	controlPlaneClient = gclient.NewForConfigOrDie(restConfig)
 
 	framework.InitClusterInformation(karmadaClient, controlPlaneClient)
+
+	controllerManager = framework.InitControllerManagerAndStartCache(restConfig)
+
+	err = utilhelper.IndexWork(context.TODO(), controllerManager)
+	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	testNamespace = fmt.Sprintf("karmadatest-%s", rand.String(RandomStrLength))
 	err = setupTestNamespace(testNamespace, kubeClient)
