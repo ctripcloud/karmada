@@ -9,7 +9,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestGenOneLabelEqualIndexerFunc(t *testing.T) {
+func TestIndexerFuncBasedOnLabel(t *testing.T) {
 	type args struct {
 		key string
 		obj client.Object
@@ -50,9 +50,9 @@ func TestGenOneLabelEqualIndexerFunc(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fn := GenOneLabelEqualIndexerFunc(tt.args.key)
+			fn := IndexerFuncBasedOnLabel(tt.args.key)
 			assert.NotNil(t, fn)
-			assert.Equalf(t, tt.want, fn(tt.args.obj), "GenOneLabelEqualIndexerFunc(%v)", tt.args.key)
+			assert.Equalf(t, tt.want, fn(tt.args.obj), "IndexerFuncBasedOnLabel(%v)", tt.args.key)
 		})
 	}
 }

@@ -436,7 +436,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
@@ -485,7 +485,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "default",
 				bindingName:      "binding",
@@ -541,7 +541,7 @@ func TestFindOrphanWorks(t *testing.T) {
 				).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				bindingNamespace: "",
 				bindingName:      "binding",
@@ -1002,7 +1002,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 				c: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
 				name:      "foo",
@@ -1030,7 +1030,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 				).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 				).Build(),
 				namespace: "default",
 				name:      "foo",
@@ -1057,7 +1057,7 @@ func TestDeleteWorkByRBNamespaceAndName(t *testing.T) {
 				).WithIndex(
 					&workv1alpha1.Work{},
 					workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-					GenOneLabelEqualIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+					IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 				).Build(),
 				name:      "foo",
 				bindingID: "3617252f-b1bb-43b0-98a1-c7de833c472c",

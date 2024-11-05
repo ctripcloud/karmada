@@ -52,7 +52,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 		&workv1alpha1.Work{},
 		workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-		utilhelper.GenOneLabelEqualIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+		utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 	).Build()
 	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
 	if rs == nil {

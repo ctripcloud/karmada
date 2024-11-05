@@ -190,6 +190,10 @@ func Run(ctx context.Context, opts *options.Options) error {
 	crtlmetrics.Registry.MustRegister(metrics.ResourceCollectors()...)
 	crtlmetrics.Registry.MustRegister(metrics.PoolCollectors()...)
 
+	if err := helper.IndexWork(ctx, controllerManager); err != nil {
+		klog.Fatalf("Failed to index Work: %v", err)
+	}
+
 	setupControllers(controllerManager, opts, ctx.Done())
 
 	// blocks until the context is done.
@@ -740,10 +744,6 @@ func setupControllers(mgr controllerruntime.Manager, opts *options.Options, stop
 	serviceLister := sharedFactory.Core().V1().Services().Lister()
 	sharedFactory.Start(stopChan)
 	sharedFactory.WaitForCacheSync(stopChan)
-
-	if err := helper.IndexWork(context.TODO(), mgr); err != nil {
-		klog.Fatalf("Failed to index Work: %v", err)
-	}
 
 	resourceInterpreter := resourceinterpreter.NewResourceInterpreter(controlPlaneInformerManager, serviceLister)
 	if err := mgr.Add(resourceInterpreter); err != nil {

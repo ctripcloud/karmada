@@ -14,13 +14,13 @@ import (
 // IndexWork creates index for Work.
 func IndexWork(ctx context.Context, mgr ctrl.Manager) error {
 	err := mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel,
-		GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel))
+		IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel))
 	if err != nil {
 		klog.Errorf("failed to create index for work, err: %v", err)
 		return err
 	}
 	err = mgr.GetFieldIndexer().IndexField(ctx, &workv1alpha1.Work{}, workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-		GenOneLabelEqualIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel))
+		IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel))
 	if err != nil {
 		klog.Errorf("failed to create index for work, err: %v", err)
 		return err
@@ -28,13 +28,13 @@ func IndexWork(ctx context.Context, mgr ctrl.Manager) error {
 	return nil
 }
 
-// GenOneLabelEqualIndexerFunc returns an IndexerFunc used to index resource with the given key as label key.
-func GenOneLabelEqualIndexerFunc(key string) client.IndexerFunc {
+// IndexerFuncBasedOnLabel returns an IndexerFunc used to index resource with the given key as label key.
+func IndexerFuncBasedOnLabel(key string) client.IndexerFunc {
 	return func(obj client.Object) []string {
-		refKey := obj.GetLabels()[key]
-		if refKey == "" {
+		val, ok := obj.GetLabels()[key]
+		if !ok {
 			return nil
 		}
-		return []string{refKey}
+		return []string{val}
 	}
 }

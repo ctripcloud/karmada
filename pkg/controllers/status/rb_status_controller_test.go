@@ -56,7 +56,7 @@ func generateRBStatusController() *RBStatusController {
 		Client: fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 			&workv1alpha1.Work{},
 			workv1alpha2.ClusterResourceBindingPermanentIDLabel,
-			utilhelper.GenOneLabelEqualIndexerFunc(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
+			utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ClusterResourceBindingPermanentIDLabel),
 		).Build(),
 		DynamicClient:   dynamicClient,
 		InformerManager: m,
@@ -143,7 +143,7 @@ func TestRBStatusController_Reconcile(t *testing.T) {
 			// Prepare binding and create it in client
 			if tt.binding != nil {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(tt.binding).WithStatusSubresource(tt.binding).
-					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel, utilhelper.GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel)).
 					Build()
 			}
 
@@ -218,7 +218,7 @@ func TestRBStatusController_syncBindingStatus(t *testing.T) {
 
 			if tt.resourceExistInClient {
 				c.Client = fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(binding).WithStatusSubresource(binding).
-					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel, utilhelper.GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel)).
+					WithIndex(&workv1alpha1.Work{}, workv1alpha2.ResourceBindingPermanentIDLabel, utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel)).
 					Build()
 			}
 

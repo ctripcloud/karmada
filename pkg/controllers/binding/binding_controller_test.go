@@ -55,7 +55,7 @@ func makeFakeRBCByResource(rs *workv1alpha2.ObjectReference) (*ResourceBindingCo
 	c := fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithIndex(
 		&workv1alpha1.Work{},
 		workv1alpha2.ResourceBindingPermanentIDLabel,
-		utilhelper.GenOneLabelEqualIndexerFunc(workv1alpha2.ResourceBindingPermanentIDLabel),
+		utilhelper.IndexerFuncBasedOnLabel(workv1alpha2.ResourceBindingPermanentIDLabel),
 	).Build()
 
 	tempDyClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
