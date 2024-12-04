@@ -39,6 +39,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -71,6 +72,7 @@ type ResourceDetector struct {
 	// DynamicClient used to fetch arbitrary resources.
 	DynamicClient                dynamic.Interface
 	InformerManager              genericmanager.SingleClusterInformerManager
+	ControllerRuntimeCache       ctrlcache.Cache
 	EventHandler                 cache.ResourceEventHandler
 	Processor                    util.AsyncWorker
 	SkippedResourceConfig        *util.SkippedResourceConfig
@@ -80,13 +82,11 @@ type ResourceDetector struct {
 	EventRecorder       record.EventRecorder
 	// policyReconcileWorker maintains a rate limited queue which used to store PropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	policyReconcileWorker   util.AsyncWorker
-	propagationPolicyLister cache.GenericLister
+	policyReconcileWorker util.AsyncWorker
 
 	// clusterPolicyReconcileWorker maintains a rate limited queue which used to store ClusterPropagationPolicy's key and
 	// a reconcile function to consume the items in queue.
-	clusterPolicyReconcileWorker   util.AsyncWorker
-	clusterPropagationPolicyLister cache.GenericLister
+	clusterPolicyReconcileWorker util.AsyncWorker
 
 	RESTMapper meta.RESTMapper
 
@@ -131,26 +131,6 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(d.ConcurrentClusterPropagationPolicySyncs, d.stopCh)
 
-	// watch and enqueue PropagationPolicy changes.
-	propagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralPropagationPolicy,
-	}
-	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, nil)
-	d.InformerManager.ForResource(propagationPolicyGVR, policyHandler)
-	d.propagationPolicyLister = d.InformerManager.Lister(propagationPolicyGVR)
-
-	// watch and enqueue ClusterPropagationPolicy changes.
-	clusterPropagationPolicyGVR := schema.GroupVersionResource{
-		Group:    policyv1alpha1.GroupVersion.Group,
-		Version:  policyv1alpha1.GroupVersion.Version,
-		Resource: policyv1alpha1.ResourcePluralClusterPropagationPolicy,
-	}
-	clusterPolicyHandler := fedinformer.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, nil)
-	d.InformerManager.ForResource(clusterPropagationPolicyGVR, clusterPolicyHandler)
-	d.clusterPropagationPolicyLister = d.InformerManager.Lister(clusterPropagationPolicyGVR)
-
 	detectorWorkerOptions := util.Options{
 		Name:               "resource detector",
 		KeyFunc:            ResourceItemKeyFunc,
@@ -161,6 +141,35 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 	d.EventHandler = fedinformer.NewFilteringHandlerOnAllEvents(d.EventFilter, d.OnAdd, d.OnUpdate, d.OnDelete)
 	d.Processor = util.NewAsyncWorker(detectorWorkerOptions)
 	d.Processor.Run(d.ConcurrentResourceTemplateSyncs, d.stopCh)
+
+	// Adding pp/cpp event handlers will start them immediately, so we need to do this after initializing the processor.
+
+	// watch and enqueue PropagationPolicy changes.
+	policyHandler := fedinformer.NewHandlerOnEvents(d.OnPropagationPolicyAdd, d.OnPropagationPolicyUpdate, nil)
+	ppInformer, err := d.ControllerRuntimeCache.GetInformer(ctx, &policyv1alpha1.PropagationPolicy{})
+	if err != nil {
+		klog.Errorf("Failed to get informer for PropagationPolicy: %v", err)
+		return err
+	}
+	_, err = ppInformer.AddEventHandler(policyHandler)
+	if err != nil {
+		klog.Errorf("Failed to add event handler for PropagationPolicy: %v", err)
+		return err
+	}
+
+	// watch and enqueue ClusterPropagationPolicy changes.
+	clusterPolicyHandler := fedinformer.NewHandlerOnEvents(d.OnClusterPropagationPolicyAdd, d.OnClusterPropagationPolicyUpdate, nil)
+	cppInformer, err := d.ControllerRuntimeCache.GetInformer(ctx, &policyv1alpha1.ClusterPropagationPolicy{})
+	if err != nil {
+		klog.Errorf("Failed to get informer for ClusterPropagationPolicy: %v", err)
+		return err
+	}
+	_, err = cppInformer.AddEventHandler(clusterPolicyHandler)
+	if err != nil {
+		klog.Errorf("Failed to add event handler for ClusterPropagationPolicy: %v", err)
+		return err
+	}
+
 	go d.discoverResources(30 * time.Second)
 
 	<-d.stopCh
@@ -359,63 +368,53 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	}
 
 	klog.V(2).Infof("Attempts to match policy for resource(%s)", objectKey)
-	policyObjects, err := d.propagationPolicyLister.ByNamespace(objectKey.Namespace).List(labels.Everything())
+	policyList := &policyv1alpha1.PropagationPolicyList{}
+	err := d.Client.List(context.TODO(), policyList, client.InNamespace(objectKey.Namespace))
 	if err != nil {
 		klog.Errorf("Failed to list propagation policy: %v", err)
 		return nil, err
 	}
-	if len(policyObjects) == 0 {
+	if len(policyList.Items) == 0 {
 		klog.V(2).Infof("No propagationpolicy find in namespace(%s).", objectKey.Namespace)
 		return nil, nil
 	}
 
-	policyList := make([]*policyv1alpha1.PropagationPolicy, 0)
-	for index := range policyObjects {
-		policy := &policyv1alpha1.PropagationPolicy{}
-		if err = helper.ConvertToTypedObject(policyObjects[index], policy); err != nil {
-			klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
-			return nil, err
-		}
-
+	policies := make([]*policyv1alpha1.PropagationPolicy, 0, len(policyList.Items))
+	for _, policy := range policyList.Items {
 		if !policy.DeletionTimestamp.IsZero() {
 			klog.V(4).Infof("Propagation policy(%s/%s) cannot match any resource template because it's being deleted.", policy.Namespace, policy.Name)
 			continue
 		}
-		policyList = append(policyList, policy)
+		policies = append(policies, &policy)
 	}
 
-	return getHighestPriorityPropagationPolicy(policyList, object, objectKey), nil
+	return getHighestPriorityPropagationPolicy(policies, object, objectKey), nil
 }
 
 // LookForMatchedClusterPolicy tries to find a ClusterPropagationPolicy for object referenced by object key.
 func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey) (*policyv1alpha1.ClusterPropagationPolicy, error) {
 	klog.V(2).Infof("Attempts to match cluster policy for resource(%s)", objectKey)
-	policyObjects, err := d.clusterPropagationPolicyLister.List(labels.Everything())
+	policyList := &policyv1alpha1.ClusterPropagationPolicyList{}
+	err := d.Client.List(context.TODO(), policyList)
 	if err != nil {
 		klog.Errorf("Failed to list cluster propagation policy: %v", err)
 		return nil, err
 	}
-	if len(policyObjects) == 0 {
+	if len(policyList.Items) == 0 {
 		klog.V(2).Infof("No clusterpropagationpolicy find.")
 		return nil, nil
 	}
 
-	policyList := make([]*policyv1alpha1.ClusterPropagationPolicy, 0)
-	for index := range policyObjects {
-		policy := &policyv1alpha1.ClusterPropagationPolicy{}
-		if err = helper.ConvertToTypedObject(policyObjects[index], policy); err != nil {
-			klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
-			return nil, err
-		}
-
+	policies := make([]*policyv1alpha1.ClusterPropagationPolicy, 0, len(policyList.Items))
+	for _, policy := range policyList.Items {
 		if !policy.DeletionTimestamp.IsZero() {
 			klog.V(4).Infof("Cluster propagation policy(%s) cannot match any resource template because it's being deleted.", policy.Name)
 			continue
 		}
-		policyList = append(policyList, policy)
+		policies = append(policies, &policy)
 	}
 
-	return getHighestPriorityClusterPropagationPolicy(policyList, object, objectKey), nil
+	return getHighestPriorityClusterPropagationPolicy(policies, object, objectKey), nil
 }
 
 // ApplyPolicy starts propagate the object referenced by object key according to PropagationPolicy.
@@ -922,18 +921,13 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 		return fmt.Errorf("invalid key")
 	}
 
-	unstructuredObj, err := d.propagationPolicyLister.Get(ckey.NamespaceKey())
+	propagationObject := &policyv1alpha1.PropagationPolicy{}
+	err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: ckey.Namespace, Name: ckey.Name}, propagationObject)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
 		klog.Errorf("Failed to get PropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
-		return err
-	}
-
-	propagationObject := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
-		klog.Errorf("Failed to convert PropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
@@ -1023,19 +1017,14 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 		return fmt.Errorf("invalid key")
 	}
 
-	unstructuredObj, err := d.clusterPropagationPolicyLister.Get(ckey.NamespaceKey())
+	propagationObject := &policyv1alpha1.ClusterPropagationPolicy{}
+	err := d.Client.Get(context.TODO(), client.ObjectKey{Name: ckey.Name}, propagationObject)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil
 		}
 
 		klog.Errorf("Failed to get ClusterPropagationPolicy(%s): %v", ckey.NamespaceKey(), err)
-		return err
-	}
-
-	propagationObject := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
-		klog.Errorf("Failed to convert ClusterPropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
 
