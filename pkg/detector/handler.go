@@ -19,14 +19,35 @@ package detector
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
 // ClusterWideKeyFunc generates a ClusterWideKey for object.
 func ClusterWideKeyFunc(obj interface{}) (util.QueueKey, error) {
+	return keys.ClusterWideKeyFunc(obj)
+}
+
+// PropagationPolicyKeyFunc generates a ClusterWideKey for PropagationPolicy and ClusterPropagationPolicy.
+func PropagationPolicyKeyFunc(obj interface{}) (util.QueueKey, error) {
+	switch policy := obj.(type) {
+	case *policyv1alpha1.PropagationPolicy:
+		policy.TypeMeta = metav1.TypeMeta{
+			Kind:       "PropagationPolicy",
+			APIVersion: policyv1alpha1.GroupVersion.String(),
+		}
+	case *policyv1alpha1.ClusterPropagationPolicy:
+		policy.TypeMeta = metav1.TypeMeta{
+			Kind:       "ClusterPropagationPolicy",
+			APIVersion: policyv1alpha1.GroupVersion.String(),
+		}
+	default:
+		return nil, fmt.Errorf("object type is not pp/cpp, unexpected type %T", obj)
+	}
 	return keys.ClusterWideKeyFunc(obj)
 }
 

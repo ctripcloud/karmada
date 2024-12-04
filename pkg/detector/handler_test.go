@@ -20,11 +20,14 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
 )
 
@@ -248,6 +251,66 @@ func TestResourceItemKeyFunc(t *testing.T) {
 			if !reflect.DeepEqual(key, tt.expectKey) {
 				t.Errorf("ResourceItemKeyFunc() = '%v', want '%v'", key, tt.expectKey)
 			}
+		})
+	}
+}
+
+func TestPropagationPolicyKeyFunc(t *testing.T) {
+	type args struct {
+		obj interface{}
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    util.QueueKey
+		wantErr bool
+	}{
+		{
+			name: "get object key for pp",
+			args: args{
+				obj: &policyv1alpha1.PropagationPolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-pp",
+						Namespace: "default",
+					},
+				},
+			},
+			want:    keys.ClusterWideKey{Group: "policy.karmada.io", Version: "v1alpha1", Kind: "PropagationPolicy", Namespace: "default", Name: "test-pp"},
+			wantErr: false,
+		},
+		{
+			name: "get object key for cpp",
+			args: args{
+				obj: &policyv1alpha1.ClusterPropagationPolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-cpp",
+					},
+				},
+			},
+			want:    keys.ClusterWideKey{Group: "policy.karmada.io", Version: "v1alpha1", Kind: "ClusterPropagationPolicy", Name: "test-cpp"},
+			wantErr: false,
+		},
+		{
+			name: "get object key for unexpected type object should fail",
+			args: args{
+				obj: &policyv1alpha1.OverridePolicy{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-op",
+						Namespace: "default",
+					},
+				},
+			},
+			want:    nil,
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := PropagationPolicyKeyFunc(tt.args.obj)
+			if tt.wantErr != (err != nil) {
+				t.Errorf("PropagationPolicyKeyFunc() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			assert.Equalf(t, tt.want, got, "PropagationPolicyKeyFunc(%v)", tt.args.obj)
 		})
 	}
 }

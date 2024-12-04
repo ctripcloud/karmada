@@ -107,19 +107,14 @@ func (d *ResourceDetector) propagateResource(object *unstructured.Unstructured,
 
 func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
 	resourceChangeByKarmada bool, policyNamespace, policyName, claimedID string) error {
-	policyObject, err := d.propagationPolicyLister.ByNamespace(policyNamespace).Get(policyName)
+	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
+	err := d.Client.Get(context.TODO(), client.ObjectKey{Namespace: policyNamespace, Name: policyName}, matchedPropagationPolicy)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("PropagationPolicy(%s/%s) has been removed.", policyNamespace, policyName)
 			return d.HandlePropagationPolicyDeletion(claimedID)
 		}
 		klog.Errorf("Failed to get claimed policy(%s/%s),: %v", policyNamespace, policyName, err)
-		return err
-	}
-
-	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedPropagationPolicy); err != nil {
-		klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
 		return err
 	}
 
@@ -145,7 +140,8 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 
 func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstructured, objectKey keys.ClusterWideKey,
 	resourceChangeByKarmada bool, policyName, policyID string) error {
-	policyObject, err := d.clusterPropagationPolicyLister.Get(policyName)
+	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
+	err := d.Client.Get(context.TODO(), client.ObjectKey{Name: policyName}, matchedClusterPropagationPolicy)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			klog.V(4).Infof("ClusterPropagationPolicy(%s) has been removed.", policyName)
@@ -153,12 +149,6 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 		}
 
 		klog.Errorf("Failed to get claimed policy(%s),: %v", policyName, err)
-		return err
-	}
-
-	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedClusterPropagationPolicy); err != nil {
-		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
 		return err
 	}
 
