@@ -37,7 +37,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // addAllEventHandlers is a helper function used in Scheduler
@@ -124,13 +123,13 @@ func (s *Scheduler) onResourceBindingAdd(obj interface{}) {
 }
 
 func (s *Scheduler) onResourceBindingUpdate(old, cur interface{}) {
-	unstructuredOldObj, err := helper.ToUnstructured(old)
+	unstructuredOldObj, err := util.ToUnstructured(old)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
 		return
 	}
 
-	unstructuredNewObj, err := helper.ToUnstructured(cur)
+	unstructuredNewObj, err := util.ToUnstructured(cur)
 	if err != nil {
 		klog.Errorf("Failed to transform newObj, error: %v", err)
 		return

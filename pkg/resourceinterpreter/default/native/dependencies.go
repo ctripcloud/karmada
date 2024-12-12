@@ -54,7 +54,7 @@ func getAllDefaultDependenciesInterpreter() map[schema.GroupVersionKind]dependen
 
 func getDeploymentDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	deploymentObj := &appsv1.Deployment{}
-	if err := helper.ConvertToTypedObject(object, deploymentObj); err != nil {
+	if err := util.ConvertToTypedObject(object, deploymentObj); err != nil {
 		return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %v", err)
 	}
 
@@ -68,7 +68,7 @@ func getDeploymentDependencies(object *unstructured.Unstructured) ([]configv1alp
 
 func getJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	jobObj := &batchv1.Job{}
-	err := helper.ConvertToTypedObject(object, jobObj)
+	err := util.ConvertToTypedObject(object, jobObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert Job from unstructured object: %v", err)
 	}
@@ -83,7 +83,7 @@ func getJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.Dep
 
 func getCronJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	cronjobObj := &batchv1.CronJob{}
-	err := helper.ConvertToTypedObject(object, cronjobObj)
+	err := util.ConvertToTypedObject(object, cronjobObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert CronJob from unstructured object: %v", err)
 	}
@@ -98,7 +98,7 @@ func getCronJobDependencies(object *unstructured.Unstructured) ([]configv1alpha1
 
 func getPodDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	podObj := &corev1.Pod{}
-	err := helper.ConvertToTypedObject(object, podObj)
+	err := util.ConvertToTypedObject(object, podObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert Pod from unstructured object: %v", err)
 	}
@@ -108,7 +108,7 @@ func getPodDependencies(object *unstructured.Unstructured) ([]configv1alpha1.Dep
 
 func getDaemonSetDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	daemonSetObj := &appsv1.DaemonSet{}
-	err := helper.ConvertToTypedObject(object, daemonSetObj)
+	err := util.ConvertToTypedObject(object, daemonSetObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %v", err)
 	}
@@ -123,7 +123,7 @@ func getDaemonSetDependencies(object *unstructured.Unstructured) ([]configv1alph
 
 func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	statefulSetObj := &appsv1.StatefulSet{}
-	err := helper.ConvertToTypedObject(object, statefulSetObj)
+	err := util.ConvertToTypedObject(object, statefulSetObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %v", err)
 	}
@@ -167,7 +167,7 @@ func getStatefulSetDependencies(object *unstructured.Unstructured) ([]configv1al
 
 func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	ingressObj := &networkingv1.Ingress{}
-	err := helper.ConvertToTypedObject(object, ingressObj)
+	err := util.ConvertToTypedObject(object, ingressObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert Ingress from unstructured object: %v", err)
 	}
@@ -185,7 +185,7 @@ func getIngressDependencies(object *unstructured.Unstructured) ([]configv1alpha1
 
 func getServiceImportDependencies(object *unstructured.Unstructured) ([]configv1alpha1.DependentObjectReference, error) {
 	svcImportObj := &mcsv1alpha1.ServiceImport{}
-	err := helper.ConvertToTypedObject(object, svcImportObj)
+	err := util.ConvertToTypedObject(object, svcImportObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert ServiceImport from unstructured object: %v", err)
 	}

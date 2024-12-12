@@ -27,7 +27,7 @@ import (
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func TestSpecificationChanged(t *testing.T) {
@@ -299,13 +299,13 @@ func TestSpecificationChanged(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unstructuredOldObj, err := helper.ToUnstructured(tt.oldObj)
+			unstructuredOldObj, err := util.ToUnstructured(tt.oldObj)
 			if err != nil {
 				klog.Errorf("Failed to transform oldObj, error: %v", err)
 				return
 			}
 
-			unstructuredNewObj, err := helper.ToUnstructured(tt.newObj)
+			unstructuredNewObj, err := util.ToUnstructured(tt.newObj)
 			if err != nil {
 				klog.Errorf("Failed to transform newObj, error: %v", err)
 				return
@@ -384,11 +384,11 @@ func TestResourceChangeByKarmada(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			oldUnstructured, err := helper.ToUnstructured(tt.oldObj)
+			oldUnstructured, err := util.ToUnstructured(tt.oldObj)
 			if err != nil {
 				t.Fatalf("Failed to convert oldObj to unstructured: %v", err)
 			}
-			newUnstructured, err := helper.ToUnstructured(tt.newObj)
+			newUnstructured, err := util.ToUnstructured(tt.newObj)
 			if err != nil {
 				t.Fatalf("Failed to convert newObj to unstructured: %v", err)
 			}

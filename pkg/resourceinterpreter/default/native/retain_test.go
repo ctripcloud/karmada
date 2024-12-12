@@ -28,7 +28,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 func Test_retainK8sWorkloadReplicas(t *testing.T) {
@@ -136,13 +135,13 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unstructuredDesiredObj, err := helper.ToUnstructured(tt.args.desired)
+			unstructuredDesiredObj, err := util.ToUnstructured(tt.args.desired)
 			if err != nil {
 				klog.Errorf("Failed to transform desired, error: %v", err)
 				return
 			}
 
-			unstructuredObservedObj, err := helper.ToUnstructured(tt.args.observed)
+			unstructuredObservedObj, err := util.ToUnstructured(tt.args.observed)
 			if err != nil {
 				klog.Errorf("Failed to transform observed, error: %v", err)
 				return
@@ -155,7 +154,7 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 
 			unstructuredWantObj := (*unstructured.Unstructured)(nil)
 			if tt.want != nil {
-				unstructuredWantObj, err = helper.ToUnstructured(tt.want)
+				unstructuredWantObj, err = util.ToUnstructured(tt.want)
 				if err != nil {
 					klog.Errorf("Failed to transform want, error: %v", err)
 					return
@@ -168,7 +167,7 @@ func Test_retainK8sWorkloadReplicas(t *testing.T) {
 
 func Test_retainSecretServiceAccountToken(t *testing.T) {
 	createSecret := func(secretType corev1.SecretType, dataKey, dataValue string) *unstructured.Unstructured {
-		ret, _ := helper.ToUnstructured(&corev1.Secret{
+		ret, _ := util.ToUnstructured(&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{},
 			Data:       map[string][]byte{dataKey: []byte(dataValue)},
 			Type:       secretType,
@@ -237,7 +236,7 @@ func Test_retainSecretServiceAccountToken(t *testing.T) {
 
 func Test_retainPersistentVolumeFields(t *testing.T) {
 	createPV := func(claimRef *corev1.ObjectReference) *unstructured.Unstructured {
-		ret, _ := helper.ToUnstructured(&corev1.PersistentVolume{
+		ret, _ := util.ToUnstructured(&corev1.PersistentVolume{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "pv",
 			},
@@ -276,7 +275,7 @@ func Test_retainPersistentVolumeFields(t *testing.T) {
 
 func Test_retainPersistentVolumeClaimFields(t *testing.T) {
 	createPVC := func(volumeName string) *unstructured.Unstructured {
-		ret, _ := helper.ToUnstructured(&corev1.PersistentVolumeClaim{
+		ret, _ := util.ToUnstructured(&corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "pvc",
 			},
@@ -466,12 +465,12 @@ func Test_retainJobSelectorFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unstructuredDesiredObj, err := helper.ToUnstructured(tt.args.desired)
+			unstructuredDesiredObj, err := util.ToUnstructured(tt.args.desired)
 			if err != nil {
 				klog.Errorf("Failed to transform desired, error: %v", err)
 				return
 			}
-			unstructuredObservedObj, err := helper.ToUnstructured(tt.args.observed)
+			unstructuredObservedObj, err := util.ToUnstructured(tt.args.observed)
 			if err != nil {
 				klog.Errorf("Failed to transform observed, error: %v", err)
 				return
@@ -481,7 +480,7 @@ func Test_retainJobSelectorFields(t *testing.T) {
 				t.Errorf("retainJobSelectorFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			unstructuredWantObj, err := helper.ToUnstructured(tt.want)
+			unstructuredWantObj, err := util.ToUnstructured(tt.want)
 			if err != nil {
 				klog.Errorf("Failed to transform want, error: %v", err)
 				return
@@ -667,12 +666,12 @@ func Test_retainPodFields(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			unstructuredDesiredObj, err := helper.ToUnstructured(tt.args.desired)
+			unstructuredDesiredObj, err := util.ToUnstructured(tt.args.desired)
 			if err != nil {
 				klog.Errorf("Failed to transform desired, error: %v", err)
 				return
 			}
-			unstructuredObservedObj, err := helper.ToUnstructured(tt.args.observed)
+			unstructuredObservedObj, err := util.ToUnstructured(tt.args.observed)
 			if err != nil {
 				klog.Errorf("Failed to transform observed, error: %v", err)
 				return
@@ -682,7 +681,7 @@ func Test_retainPodFields(t *testing.T) {
 				t.Errorf("retainPodFields() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			unstructuredWantObj, err := helper.ToUnstructured(tt.want)
+			unstructuredWantObj, err := util.ToUnstructured(tt.want)
 			if err != nil {
 				klog.Errorf("Failed to transform want, error: %v", err)
 				return

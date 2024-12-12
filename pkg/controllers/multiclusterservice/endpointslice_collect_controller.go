@@ -345,14 +345,14 @@ func (c *EndpointSliceCollectController) collectTargetEndpointSlice(ctx context.
 	}
 	for _, epsObj := range epsList {
 		eps := &discoveryv1.EndpointSlice{}
-		if err = helper.ConvertToTypedObject(epsObj, eps); err != nil {
+		if err = util.ConvertToTypedObject(epsObj, eps); err != nil {
 			klog.Errorf("Failed to convert object to EndpointSlice, error: %v", err)
 			return err
 		}
 		if util.GetLabelValue(eps.GetLabels(), discoveryv1.LabelManagedBy) == util.EndpointSliceDispatchControllerLabelValue {
 			continue
 		}
-		epsUnstructured, err := helper.ToUnstructured(eps)
+		epsUnstructured, err := util.ToUnstructured(eps)
 		if err != nil {
 			klog.Errorf("Failed to convert EndpointSlice %s/%s to unstructured, error: %v", eps.GetNamespace(), eps.GetName(), err)
 			return err

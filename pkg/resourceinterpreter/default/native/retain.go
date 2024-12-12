@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted"
 )
 
@@ -48,13 +47,13 @@ func getAllDefaultRetentionInterpreter() map[schema.GroupVersionKind]retentionIn
 
 func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	desiredPod := &corev1.Pod{}
-	err := helper.ConvertToTypedObject(desired, desiredPod)
+	err := util.ConvertToTypedObject(desired, desiredPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert desiredPod from unstructured object: %v", err)
 	}
 
 	clusterPod := &corev1.Pod{}
-	err = helper.ConvertToTypedObject(observed, clusterPod)
+	err = util.ConvertToTypedObject(observed, clusterPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert clusterPod from unstructured object: %v", err)
 	}
@@ -81,7 +80,7 @@ func retainPodFields(desired, observed *unstructured.Unstructured) (*unstructure
 			}
 		}
 	}
-	unstructuredObj, err := helper.ToUnstructured(desiredPod)
+	unstructuredObj, err := util.ToUnstructured(desiredPod)
 	if err != nil {
 		return nil, fmt.Errorf("failed to transform Pod: %v", err)
 	}

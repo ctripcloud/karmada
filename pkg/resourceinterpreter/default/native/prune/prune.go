@@ -27,7 +27,6 @@ import (
 	utildeployment "k8s.io/kubectl/pkg/util/deployment"
 
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 // pruneIrrelevantField is the function that prune irrelevant fields from Work Object.
@@ -155,7 +154,7 @@ func RemoveJobTTLSeconds(workload *unstructured.Unstructured) {
 // removeJobIrrelevantField removes the irrelevant fields from Job (e.g. ManualSelector)
 func removeJobIrrelevantField(workload *unstructured.Unstructured) error {
 	job := &batchv1.Job{}
-	err := helper.ConvertToTypedObject(workload, job)
+	err := util.ConvertToTypedObject(workload, job)
 	if err != nil {
 		return err
 	}

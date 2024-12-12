@@ -314,13 +314,13 @@ func (d *ResourceDetector) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *ResourceDetector) OnUpdate(oldObj, newObj interface{}) {
-	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+	unstructuredOldObj, err := util.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
 		return
 	}
 
-	unstructuredNewObj, err := helper.ToUnstructured(newObj)
+	unstructuredNewObj, err := util.ToUnstructured(newObj)
 	if err != nil {
 		klog.Errorf("Failed to transform newObj, error: %v", err)
 		return
@@ -372,7 +372,7 @@ func (d *ResourceDetector) LookForMatchedPolicy(object *unstructured.Unstructure
 	policyList := make([]*policyv1alpha1.PropagationPolicy, 0)
 	for index := range policyObjects {
 		policy := &policyv1alpha1.PropagationPolicy{}
-		if err = helper.ConvertToTypedObject(policyObjects[index], policy); err != nil {
+		if err = util.ConvertToTypedObject(policyObjects[index], policy); err != nil {
 			klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
 			return nil, err
 		}
@@ -403,7 +403,7 @@ func (d *ResourceDetector) LookForMatchedClusterPolicy(object *unstructured.Unst
 	policyList := make([]*policyv1alpha1.ClusterPropagationPolicy, 0)
 	for index := range policyObjects {
 		policy := &policyv1alpha1.ClusterPropagationPolicy{}
-		if err = helper.ConvertToTypedObject(policyObjects[index], policy); err != nil {
+		if err = util.ConvertToTypedObject(policyObjects[index], policy); err != nil {
 			klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
 			return nil, err
 		}
@@ -663,7 +663,7 @@ func (d *ResourceDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) 
 		return nil, err
 	}
 
-	unstructuredObj, err := helper.ToUnstructured(object)
+	unstructuredObj, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s), error: %v", objectKey, err)
 		return nil, err
@@ -874,12 +874,12 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 		var unstructuredOldObj *unstructured.Unstructured
 		var unstructuredNewObj *unstructured.Unstructured
 
-		unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+		unstructuredOldObj, err := util.ToUnstructured(oldObj)
 		if err != nil {
 			klog.Errorf("Failed to transform oldObj, error: %v", err)
 			return
 		}
-		unstructuredNewObj, err = helper.ToUnstructured(newObj)
+		unstructuredNewObj, err = util.ToUnstructured(newObj)
 		if err != nil {
 			klog.Errorf("Failed to transform newObj, error: %v", err)
 			return
@@ -888,11 +888,11 @@ func (d *ResourceDetector) OnPropagationPolicyUpdate(oldObj, newObj interface{})
 		var oldPolicy policyv1alpha1.PropagationPolicy
 		var newPolicy policyv1alpha1.PropagationPolicy
 
-		if err = helper.ConvertToTypedObject(unstructuredOldObj, &oldPolicy); err != nil {
+		if err = util.ConvertToTypedObject(unstructuredOldObj, &oldPolicy); err != nil {
 			klog.Errorf("Failed to convert typed PropagationPolicy(%s/%s): %v", unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName(), err)
 			return
 		}
-		if err = helper.ConvertToTypedObject(unstructuredNewObj, &newPolicy); err != nil {
+		if err = util.ConvertToTypedObject(unstructuredNewObj, &newPolicy); err != nil {
 			klog.Errorf("Failed to convert typed PropagationPolicy(%s/%s): %v", newPolicy.GetNamespace(), newPolicy.GetName(), err)
 			return
 		}
@@ -925,7 +925,7 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 	}
 
 	propagationObject := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
+	if err = util.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
 		klog.Errorf("Failed to convert PropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}
@@ -975,12 +975,12 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 		var unstructuredOldObj *unstructured.Unstructured
 		var unstructuredNewObj *unstructured.Unstructured
 
-		unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+		unstructuredOldObj, err := util.ToUnstructured(oldObj)
 		if err != nil {
 			klog.Errorf("Failed to transform oldObj, error: %v", err)
 			return
 		}
-		unstructuredNewObj, err = helper.ToUnstructured(newObj)
+		unstructuredNewObj, err = util.ToUnstructured(newObj)
 		if err != nil {
 			klog.Errorf("Failed to transform newObj, error: %v", err)
 			return
@@ -989,11 +989,11 @@ func (d *ResourceDetector) OnClusterPropagationPolicyUpdate(oldObj, newObj inter
 		var oldPolicy policyv1alpha1.ClusterPropagationPolicy
 		var newPolicy policyv1alpha1.ClusterPropagationPolicy
 
-		if err = helper.ConvertToTypedObject(unstructuredOldObj, &oldPolicy); err != nil {
+		if err = util.ConvertToTypedObject(unstructuredOldObj, &oldPolicy); err != nil {
 			klog.Errorf("Failed to convert typed ClusterPropagationPolicy(%s/%s): %v", unstructuredOldObj.GetNamespace(), unstructuredOldObj.GetName(), err)
 			return
 		}
-		if err = helper.ConvertToTypedObject(unstructuredNewObj, &newPolicy); err != nil {
+		if err = util.ConvertToTypedObject(unstructuredNewObj, &newPolicy); err != nil {
 			klog.Errorf("Failed to convert typed ClusterPropagationPolicy(%s/%s): %v", newPolicy.GetNamespace(), newPolicy.GetName(), err)
 			return
 		}
@@ -1027,7 +1027,7 @@ func (d *ResourceDetector) ReconcileClusterPropagationPolicy(key util.QueueKey) 
 	}
 
 	propagationObject := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
+	if err = util.ConvertToTypedObject(unstructuredObj, propagationObject); err != nil {
 		klog.Errorf("Failed to convert ClusterPropagationPolicy(%s) from unstructured object: %v", ckey.NamespaceKey(), err)
 		return err
 	}

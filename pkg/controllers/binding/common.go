@@ -90,7 +90,7 @@ func ensureWork(
 			// setting this field as well.
 			// Refer to: https://kubernetes.io/docs/concepts/workloads/controllers/job/#parallel-jobs.
 			if len(jobCompletions) > 0 {
-				if err = helper.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
+				if err = util.ApplyReplica(clonedWorkload, int64(jobCompletions[i].Replicas), util.CompletionsField); err != nil {
 					klog.Errorf("Failed to apply Completions for %s/%s/%s in cluster %s, err is: %v",
 						clonedWorkload.GetKind(), clonedWorkload.GetNamespace(), clonedWorkload.GetName(), targetCluster.Name, err)
 					return err

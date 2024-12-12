@@ -349,7 +349,7 @@ func (c *Controller) updateWorkDispatchingConditionIfNeeded(ctx context.Context,
 		return err
 	}
 
-	obj, err := helper.ToUnstructured(work)
+	obj, err := util.ToUnstructured(work)
 	if err != nil {
 		return err
 	}

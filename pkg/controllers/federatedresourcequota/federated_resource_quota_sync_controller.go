@@ -167,7 +167,7 @@ func (c *SyncController) buildWorks(ctx context.Context, quota *policyv1alpha1.F
 		resourceQuota.Name = quota.Name
 		resourceQuota.Spec.Hard = extractClusterHardResourceList(quota.Spec, cluster.Name)
 
-		resourceQuotaObj, err := helper.ToUnstructured(resourceQuota)
+		resourceQuotaObj, err := util.ToUnstructured(resourceQuota)
 		if err != nil {
 			klog.Errorf("Failed to transform resourceQuota(%s), error: %v", klog.KObj(resourceQuota).String(), err)
 			errs = append(errs, err)

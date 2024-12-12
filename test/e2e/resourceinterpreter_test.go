@@ -43,7 +43,7 @@ import (
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/names"
 	"github.com/karmada-io/karmada/test/e2e/framework"
 	testhelper "github.com/karmada-io/karmada/test/helper"
@@ -120,7 +120,7 @@ var _ = ginkgo.Describe("Resource interpreter webhook testing", func() {
 					curWorkload.Spec.Replicas = ptr.To[int32](2)
 					curWorkload.Spec.Paused = true
 
-					newUnstructuredObj, err := helper.ToUnstructured(curWorkload)
+					newUnstructuredObj, err := util.ToUnstructured(curWorkload)
 					g.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 					workloadGVR := workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")

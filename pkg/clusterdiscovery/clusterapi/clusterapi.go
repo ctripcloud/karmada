@@ -42,7 +42,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/keys"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
@@ -166,7 +165,7 @@ func (d *ClusterDetector) GetUnstructuredObject(objectKey keys.ClusterWideKey) (
 		return nil, err
 	}
 
-	unstructuredObj, err := helper.ToUnstructured(object)
+	unstructuredObj, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s), error: %v", objectKey, err)
 		return nil, err

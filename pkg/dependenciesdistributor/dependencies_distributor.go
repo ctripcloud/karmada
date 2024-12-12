@@ -135,13 +135,13 @@ func (d *DependenciesDistributor) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
-	unstructuredOldObj, err := helper.ToUnstructured(oldObj)
+	unstructuredOldObj, err := util.ToUnstructured(oldObj)
 	if err != nil {
 		klog.Errorf("Failed to transform oldObj, error: %v", err)
 		return
 	}
 
-	unstructuredNewObj, err := helper.ToUnstructured(newObj)
+	unstructuredNewObj, err := util.ToUnstructured(newObj)
 	if err != nil {
 		klog.Errorf("Failed to transform newObj, error: %v", err)
 		return

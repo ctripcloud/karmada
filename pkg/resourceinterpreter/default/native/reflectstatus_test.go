@@ -62,7 +62,7 @@ func Test_reflectPodDisruptionBudgetStatus(t *testing.T) {
 						},
 					},
 				}
-				obj, _ := helper.ToUnstructured(pdb)
+				obj, _ := util.ToUnstructured(pdb)
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -151,7 +151,7 @@ func Test_reflectHorizontalPodAutoscalerStatus(t *testing.T) {
 						DesiredReplicas: 3,
 					},
 				}
-				obj, _ := helper.ToUnstructured(hpa)
+				obj, _ := util.ToUnstructured(hpa)
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -434,7 +434,7 @@ func Test_reflectDeploymentStatus(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Convert deployment to unstructured
-			unstrObj, err := helper.ToUnstructured(tt.deployment)
+			unstrObj, err := util.ToUnstructured(tt.deployment)
 			require.NoError(t, err, "Failed to convert deployment to unstructured")
 
 			// Apply modifications if specified
@@ -564,7 +564,7 @@ func Test_reflectIngressStatus(t *testing.T) {
 		},
 	}
 
-	ingressStatusMap, _ := helper.ToUnstructured(&networkingv1.Ingress{Status: testIngress})
+	ingressStatusMap, _ := util.ToUnstructured(&networkingv1.Ingress{Status: testIngress})
 	wantRawExtension, _ := helper.BuildStatusRawExtension(testIngress)
 
 	tests := []struct {
@@ -641,7 +641,7 @@ func Test_reflectJobStatus(t *testing.T) {
 		{
 			name: "job with all status fields",
 			object: func() *unstructured.Unstructured {
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: jobStatus})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: jobStatus})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -675,7 +675,7 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.Conditions = []batchv1.JobCondition{}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: *status})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -701,7 +701,7 @@ func Test_reflectJobStatus(t *testing.T) {
 						Message: "Job failed due to error",
 					},
 				}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: *status})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -731,7 +731,7 @@ func Test_reflectJobStatus(t *testing.T) {
 				status.Active = 1
 				status.CompletionTime = nil
 				status.Conditions = []batchv1.JobCondition{}
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: *status})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -761,7 +761,7 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.CompletionTime = nil
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: *status})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -777,7 +777,7 @@ func Test_reflectJobStatus(t *testing.T) {
 			object: func() *unstructured.Unstructured {
 				status := jobStatus.DeepCopy()
 				status.StartTime = nil
-				obj, _ := helper.ToUnstructured(&batchv1.Job{Status: *status})
+				obj, _ := util.ToUnstructured(&batchv1.Job{Status: *status})
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -838,7 +838,7 @@ func Test_reflectDaemonSetStatus(t *testing.T) {
 						ObservedGeneration:     2,
 					},
 				}
-				obj, _ := helper.ToUnstructured(ds)
+				obj, _ := util.ToUnstructured(ds)
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -1000,7 +1000,7 @@ func Test_reflectStatefulSetStatus(t *testing.T) {
 						AvailableReplicas: 3,
 					},
 				}
-				obj, _ := helper.ToUnstructured(sts)
+				obj, _ := util.ToUnstructured(sts)
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {
@@ -1084,7 +1084,7 @@ func Test_reflectStatefulSetStatus(t *testing.T) {
 						// UpdatedReplicas and AvailableReplicas missing
 					},
 				}
-				obj, _ := helper.ToUnstructured(sts)
+				obj, _ := util.ToUnstructured(sts)
 				return obj
 			}(),
 			want: func() *runtime.RawExtension {

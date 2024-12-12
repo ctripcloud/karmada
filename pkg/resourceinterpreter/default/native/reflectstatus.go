@@ -65,7 +65,7 @@ func reflectDeploymentStatus(object *unstructured.Unstructured) (*runtime.RawExt
 	}
 
 	deploymentStatus := &appsv1.DeploymentStatus{}
-	if err = helper.ConvertToTypedObject(statusMap, deploymentStatus); err != nil {
+	if err = util.ConvertToTypedObject(statusMap, deploymentStatus); err != nil {
 		return nil, fmt.Errorf("failed to convert DeploymentStatus from map[string]interface{}: %v", err)
 	}
 
@@ -132,7 +132,7 @@ func reflectServiceStatus(object *unstructured.Unstructured) (*runtime.RawExtens
 	}
 
 	serviceStatus := &corev1.ServiceStatus{}
-	err = helper.ConvertToTypedObject(statusMap, serviceStatus)
+	err = util.ConvertToTypedObject(statusMap, serviceStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert ServiceStatus from map[string]interface{}: %v", err)
 	}
@@ -161,7 +161,7 @@ func reflectJobStatus(object *unstructured.Unstructured) (*runtime.RawExtension,
 	}
 
 	jobStatus := &batchv1.JobStatus{}
-	err = helper.ConvertToTypedObject(statusMap, jobStatus)
+	err = util.ConvertToTypedObject(statusMap, jobStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert JobStatus from map[string]interface{}: %v", err)
 	}
@@ -191,7 +191,7 @@ func reflectDaemonSetStatus(object *unstructured.Unstructured) (*runtime.RawExte
 	}
 
 	daemonSetStatus := &appsv1.DaemonSetStatus{}
-	err = helper.ConvertToTypedObject(statusMap, daemonSetStatus)
+	err = util.ConvertToTypedObject(statusMap, daemonSetStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert DaemonSetStatus from map[string]interface{}: %v", err)
 	}
@@ -246,7 +246,7 @@ func reflectStatefulSetStatus(object *unstructured.Unstructured) (*runtime.RawEx
 	}
 
 	statefulSetStatus := &appsv1.StatefulSetStatus{}
-	err = helper.ConvertToTypedObject(statusMap, statefulSetStatus)
+	err = util.ConvertToTypedObject(statusMap, statefulSetStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert StatefulSetStatus from map[string]interface{}: %v", err)
 	}
@@ -281,7 +281,7 @@ func reflectPodDisruptionBudgetStatus(object *unstructured.Unstructured) (*runti
 	}
 
 	pdbStatus := &policyv1.PodDisruptionBudgetStatus{}
-	err = helper.ConvertToTypedObject(statusMap, pdbStatus)
+	err = util.ConvertToTypedObject(statusMap, pdbStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert PodDisruptionBudget from map[string]interface{}: %v", err)
 	}
@@ -310,7 +310,7 @@ func reflectHorizontalPodAutoscalerStatus(object *unstructured.Unstructured) (*r
 	}
 
 	hpaStatus := &autoscalingv2.HorizontalPodAutoscalerStatus{}
-	err = helper.ConvertToTypedObject(statusMap, hpaStatus)
+	err = util.ConvertToTypedObject(statusMap, hpaStatus)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert HorizontalPodAutoscaler from map[string]interface{}: %v", err)
 	}

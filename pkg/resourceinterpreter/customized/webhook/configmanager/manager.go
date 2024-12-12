@@ -28,9 +28,9 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var resourceExploringWebhookConfigurationsGVR = schema.GroupVersionResource{
@@ -101,14 +101,14 @@ func (m *interpreterConfigManager) updateConfiguration() {
 
 	configs := make([]*configv1alpha1.ResourceInterpreterWebhookConfiguration, 0)
 	for _, c := range configurations {
-		unstructuredConfig, err := helper.ToUnstructured(c)
+		unstructuredConfig, err := util.ToUnstructured(c)
 		if err != nil {
 			klog.Errorf("Failed to transform ResourceInterpreterWebhookConfiguration: %v", err)
 			return
 		}
 
 		config := &configv1alpha1.ResourceInterpreterWebhookConfiguration{}
-		err = helper.ConvertToTypedObject(unstructuredConfig, config)
+		err = util.ConvertToTypedObject(unstructuredConfig, config)
 		if err != nil {
 			gvk := unstructuredConfig.GroupVersionKind().String()
 			klog.Errorf("Failed to convert object(%s), err: %v", gvk, err)

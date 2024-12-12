@@ -46,7 +46,7 @@ func getAllDefaultHealthInterpreter() map[schema.GroupVersionKind]healthInterpre
 
 func interpretDeploymentHealth(object *unstructured.Unstructured) (bool, error) {
 	deploy := &appsv1.Deployment{}
-	err := helper.ConvertToTypedObject(object, deploy)
+	err := util.ConvertToTypedObject(object, deploy)
 	if err != nil {
 		return false, err
 	}
@@ -65,7 +65,7 @@ func interpretDeploymentHealth(object *unstructured.Unstructured) (bool, error) 
 
 func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error) {
 	statefulSet := &appsv1.StatefulSet{}
-	err := helper.ConvertToTypedObject(object, statefulSet)
+	err := util.ConvertToTypedObject(object, statefulSet)
 	if err != nil {
 		return false, err
 	}
@@ -84,7 +84,7 @@ func interpretStatefulSetHealth(object *unstructured.Unstructured) (bool, error)
 
 func interpretReplicaSetHealth(object *unstructured.Unstructured) (bool, error) {
 	replicaSet := &appsv1.ReplicaSet{}
-	err := helper.ConvertToTypedObject(object, replicaSet)
+	err := util.ConvertToTypedObject(object, replicaSet)
 	if err != nil {
 		return false, err
 	}
@@ -100,7 +100,7 @@ func interpretReplicaSetHealth(object *unstructured.Unstructured) (bool, error) 
 
 func interpretDaemonSetHealth(object *unstructured.Unstructured) (bool, error) {
 	daemonSet := &appsv1.DaemonSet{}
-	err := helper.ConvertToTypedObject(object, daemonSet)
+	err := util.ConvertToTypedObject(object, daemonSet)
 	if err != nil {
 		return false, err
 	}
@@ -120,7 +120,7 @@ func interpretDaemonSetHealth(object *unstructured.Unstructured) (bool, error) {
 
 func interpretServiceHealth(object *unstructured.Unstructured) (bool, error) {
 	service := &corev1.Service{}
-	err := helper.ConvertToTypedObject(object, service)
+	err := util.ConvertToTypedObject(object, service)
 	if err != nil {
 		return false, err
 	}
@@ -140,7 +140,7 @@ func interpretServiceHealth(object *unstructured.Unstructured) (bool, error) {
 
 func interpretIngressHealth(object *unstructured.Unstructured) (bool, error) {
 	ingress := &networkingv1.Ingress{}
-	err := helper.ConvertToTypedObject(object, ingress)
+	err := util.ConvertToTypedObject(object, ingress)
 	if err != nil {
 		return false, err
 	}
@@ -156,7 +156,7 @@ func interpretIngressHealth(object *unstructured.Unstructured) (bool, error) {
 
 func interpretPersistentVolumeClaimHealth(object *unstructured.Unstructured) (bool, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := helper.ConvertToTypedObject(object, pvc)
+	err := util.ConvertToTypedObject(object, pvc)
 	if err != nil {
 		return false, err
 	}
@@ -166,7 +166,7 @@ func interpretPersistentVolumeClaimHealth(object *unstructured.Unstructured) (bo
 
 func interpretPodHealth(object *unstructured.Unstructured) (bool, error) {
 	pod := &corev1.Pod{}
-	err := helper.ConvertToTypedObject(object, pod)
+	err := util.ConvertToTypedObject(object, pod)
 	if err != nil {
 		return false, err
 	}
@@ -185,7 +185,7 @@ func interpretPodHealth(object *unstructured.Unstructured) (bool, error) {
 
 func interpretPodDisruptionBudgetHealth(object *unstructured.Unstructured) (bool, error) {
 	pdb := &policyv1.PodDisruptionBudget{}
-	err := helper.ConvertToTypedObject(object, pdb)
+	err := util.ConvertToTypedObject(object, pdb)
 	if err != nil {
 		return false, err
 	}

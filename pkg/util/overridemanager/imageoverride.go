@@ -28,7 +28,6 @@ import (
 
 	policyv1alpha1 "github.com/karmada-io/karmada/pkg/apis/policy/v1alpha1"
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/imageparser"
 )
 
@@ -51,37 +50,37 @@ func buildPatchesWithEmptyPredicate(rawObj *unstructured.Unstructured, imageOver
 	switch rawObj.GetKind() {
 	case util.PodKind:
 		podObj := &corev1.Pod{}
-		if err := helper.ConvertToTypedObject(rawObj, podObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, podObj); err != nil {
 			return nil, fmt.Errorf("failed to convert Pod from unstructured object: %v", err)
 		}
 		return extractPatchesBy(podObj.Spec, podSpecPrefix, imageOverrider)
 	case util.ReplicaSetKind:
 		replicaSetObj := &appsv1.ReplicaSet{}
-		if err := helper.ConvertToTypedObject(rawObj, replicaSetObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, replicaSetObj); err != nil {
 			return nil, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
 		}
 		return extractPatchesBy(replicaSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DeploymentKind:
 		deploymentObj := &appsv1.Deployment{}
-		if err := helper.ConvertToTypedObject(rawObj, deploymentObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, deploymentObj); err != nil {
 			return nil, fmt.Errorf("failed to convert Deployment from unstructured object: %v", err)
 		}
 		return extractPatchesBy(deploymentObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.DaemonSetKind:
 		daemonSetObj := &appsv1.DaemonSet{}
-		if err := helper.ConvertToTypedObject(rawObj, daemonSetObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, daemonSetObj); err != nil {
 			return nil, fmt.Errorf("failed to convert DaemonSet from unstructured object: %v", err)
 		}
 		return extractPatchesBy(daemonSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.StatefulSetKind:
 		statefulSetObj := &appsv1.StatefulSet{}
-		if err := helper.ConvertToTypedObject(rawObj, statefulSetObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, statefulSetObj); err != nil {
 			return nil, fmt.Errorf("failed to convert StatefulSet from unstructured object: %v", err)
 		}
 		return extractPatchesBy(statefulSetObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)
 	case util.JobKind:
 		jobObj := &batchv1.Job{}
-		if err := helper.ConvertToTypedObject(rawObj, jobObj); err != nil {
+		if err := util.ConvertToTypedObject(rawObj, jobObj); err != nil {
 			return nil, fmt.Errorf("failed to convert Job from unstructured object: %v", err)
 		}
 		return extractPatchesBy(jobObj.Spec.Template.Spec, podTemplatePrefix, imageOverrider)

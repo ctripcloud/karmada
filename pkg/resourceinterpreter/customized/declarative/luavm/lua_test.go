@@ -32,6 +32,7 @@ import (
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -161,7 +162,7 @@ end`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			toUnstructured, _ := helper.ToUnstructured(tt.deploy)
+			toUnstructured, _ := util.ToUnstructured(tt.deploy)
 			replicas, requires, err := vm.GetReplicas(toUnstructured, tt.luaScript)
 			if err != nil {
 				t.Fatal(err.Error())
@@ -293,8 +294,8 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 		Replicas: 0, ReadyReplicas: 1, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}
 
 	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 0, ReadyReplicas: 3, UpdatedReplicas: 0, AvailableReplicas: 0, UnavailableReplicas: 0}}
-	oldObj, _ := helper.ToUnstructured(oldDeploy)
-	newObj, _ := helper.ToUnstructured(newDeploy)
+	oldObj, _ := util.ToUnstructured(oldDeploy)
+	newObj, _ := util.ToUnstructured(newDeploy)
 
 	tests := []struct {
 		name                  string
@@ -321,12 +322,12 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 	for _, tt := range tests {
 		actualObj, _ := vm.AggregateStatus(tt.curObj, tt.aggregatedStatusItems, tt.luaScript)
 		actualDeploy := appsv1.DeploymentStatus{}
-		err := helper.ConvertToTypedObject(actualObj.Object["status"], &actualDeploy)
+		err := util.ConvertToTypedObject(actualObj.Object["status"], &actualDeploy)
 		if err != nil {
 			t.Error(err.Error())
 		}
 		expectDeploy := appsv1.DeploymentStatus{}
-		err = helper.ConvertToTypedObject(tt.expectedObj.Object["status"], &expectDeploy)
+		err = util.ConvertToTypedObject(tt.expectedObj.Object["status"], &expectDeploy)
 		if err != nil {
 			t.Error(err.Error())
 		}
@@ -347,7 +348,7 @@ func TestHealthDeploymentStatus(t *testing.T) {
 			Generation: 1,
 		},
 		Status: appsv1.DeploymentStatus{ObservedGeneration: 1, Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2}}
-	newObj, _ := helper.ToUnstructured(newDeploy)
+	newObj, _ := util.ToUnstructured(newDeploy)
 
 	tests := []struct {
 		name        string
@@ -531,7 +532,7 @@ func TestGetDeployPodDependencies(t *testing.T) {
 	}
 	newDeploy2 := newDeploy1.DeepCopy()
 	newDeploy2.Namespace = ""
-	newObj1, _ := helper.ToUnstructured(&newDeploy1)
+	newObj1, _ := util.ToUnstructured(&newDeploy1)
 	expect1 := make([]configv1alpha1.DependentObjectReference, 1)
 	expect1[0] = configv1alpha1.DependentObjectReference{
 		APIVersion: "v1",
@@ -539,7 +540,7 @@ func TestGetDeployPodDependencies(t *testing.T) {
 		Namespace:  "test",
 		Name:       "test",
 	}
-	newObj2, _ := helper.ToUnstructured(&newDeploy2)
+	newObj2, _ := util.ToUnstructured(&newDeploy2)
 	expect2 := make([]configv1alpha1.DependentObjectReference, 1)
 	expect2[0] = configv1alpha1.DependentObjectReference{
 		APIVersion: "v1",

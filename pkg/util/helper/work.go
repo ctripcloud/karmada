@@ -37,6 +37,7 @@ import (
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
 	"github.com/karmada-io/karmada/pkg/util"
+	"github.com/karmada-io/karmada/pkg/util/helper/mutating"
 )
 
 // CreateOrUpdateWork creates a Work object if not exist, or updates if it already exists.
@@ -76,6 +77,13 @@ func CreateOrUpdateWork(ctx context.Context, client client.Client, workMeta meta
 	}
 
 	applyWorkOptions(work, options)
+
+	// mutate work here, to let DeepEqual() has chances to return true, then avoid unnecessary update.
+	err = mutating.MutateWork(work)
+	if err != nil {
+		klog.Errorf("Failed to mutate work(%s/%s), error: %v", work.GetNamespace(), work.GetName(), err)
+		return err
+	}
 
 	runtimeObject := work.DeepCopy()
 	var operationResult controllerutil.OperationResult

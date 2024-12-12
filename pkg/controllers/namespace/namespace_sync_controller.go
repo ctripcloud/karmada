@@ -120,7 +120,7 @@ func (c *Controller) namespaceShouldBeSynced(namespace string) bool {
 }
 
 func (c *Controller) buildWorks(ctx context.Context, namespace *corev1.Namespace, clusters []clusterv1alpha1.Cluster) error {
-	namespaceObj, err := helper.ToUnstructured(namespace)
+	namespaceObj, err := util.ToUnstructured(namespace)
 	if err != nil {
 		klog.Errorf("Failed to transform namespace %s. Error: %v", namespace.GetName(), err)
 		return err

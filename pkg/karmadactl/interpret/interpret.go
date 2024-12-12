@@ -36,8 +36,8 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	utilcomp "github.com/karmada-io/karmada/pkg/karmadactl/util/completion"
 	"github.com/karmada-io/karmada/pkg/karmadactl/util/genericresource"
+	util2 "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/interpreter"
 )
 
@@ -260,7 +260,7 @@ func getUnstructuredObjectFromResult(result *resource.Result) (*unstructured.Uns
 		return nil, fmt.Errorf("get %v objects, expect one at most", len(infos))
 	}
 
-	return helper.ToUnstructured(infos[0].Object)
+	return util2.ToUnstructured(infos[0].Object)
 }
 
 func asResourceInterpreterCustomization(o runtime.Object) (*configv1alpha1.ResourceInterpreterCustomization, error) {

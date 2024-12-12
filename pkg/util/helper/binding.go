@@ -274,7 +274,7 @@ func FetchResourceTemplate(
 		}
 	}
 
-	unstructuredObj, err := ToUnstructured(object)
+	unstructuredObj, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
 		return nil, err
@@ -323,7 +323,7 @@ func FetchResourceTemplatesByLabelSelector(
 	}
 
 	for i := range objectList {
-		unstructuredObj, err := ToUnstructured(objectList[i])
+		unstructuredObj, err := util.ToUnstructured(objectList[i])
 		if err != nil {
 			klog.Errorf("Failed to transform object(%s/%s), Error: %v", resource.Namespace, resource.Name, err)
 			return nil, err
