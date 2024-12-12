@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/karmada-io/karmada/pkg/util"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 type reviseReplicaInterpreter func(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error)
@@ -37,21 +36,21 @@ func getAllDefaultReviseReplicaInterpreter() map[schema.GroupVersionKind]reviseR
 }
 
 func reviseDeploymentReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
-	if err := helper.ApplyReplica(object, replica, util.ReplicasField); err != nil {
+	if err := util.ApplyReplica(object, replica, util.ReplicasField); err != nil {
 		return nil, err
 	}
 	return object, nil
 }
 
 func reviseStatefulSetReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
-	if err := helper.ApplyReplica(object, replica, util.ReplicasField); err != nil {
+	if err := util.ApplyReplica(object, replica, util.ReplicasField); err != nil {
 		return nil, err
 	}
 	return object, nil
 }
 
 func reviseJobReplica(object *unstructured.Unstructured, replica int64) (*unstructured.Unstructured, error) {
-	if err := helper.ApplyReplica(object, replica, util.ParallelismField); err != nil {
+	if err := util.ApplyReplica(object, replica, util.ParallelismField); err != nil {
 		return nil, err
 	}
 	return object, nil

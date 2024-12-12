@@ -50,7 +50,7 @@ func GetUnschedulablePodsOfWorkload(unstructObj *unstructured.Unstructured, thre
 	switch unstructObj.GetKind() {
 	case util.DeploymentKind:
 		deployment := &appsv1.Deployment{}
-		if err := helper.ConvertToTypedObject(unstructObj, deployment); err != nil {
+		if err := util.ConvertToTypedObject(unstructObj, deployment); err != nil {
 			return 0, fmt.Errorf("failed to convert ReplicaSet from unstructured object: %v", err)
 		}
 		pods, err := listDeploymentPods(deployment, listers)

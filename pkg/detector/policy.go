@@ -118,7 +118,7 @@ func (d *ResourceDetector) getAndApplyPolicy(object *unstructured.Unstructured, 
 	}
 
 	matchedPropagationPolicy := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedPropagationPolicy); err != nil {
+	if err = util.ConvertToTypedObject(policyObject, matchedPropagationPolicy); err != nil {
 		klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v", err)
 		return err
 	}
@@ -157,7 +157,7 @@ func (d *ResourceDetector) getAndApplyClusterPolicy(object *unstructured.Unstruc
 	}
 
 	matchedClusterPropagationPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(policyObject, matchedClusterPropagationPolicy); err != nil {
+	if err = util.ConvertToTypedObject(policyObject, matchedClusterPropagationPolicy); err != nil {
 		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v", err)
 		return err
 	}

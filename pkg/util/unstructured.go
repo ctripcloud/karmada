@@ -14,15 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helper
+package util
 
 import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/karmada-io/karmada/pkg/util"
 )
 
 // ConvertToTypedObject converts an unstructured object to typed.
@@ -43,12 +41,12 @@ func ConvertToTypedObject(in, out interface{}) error {
 
 // ApplyReplica applies the Replica value for the specific field.
 func ApplyReplica(workload *unstructured.Unstructured, desireReplica int64, field string) error {
-	_, ok, err := unstructured.NestedInt64(workload.Object, util.SpecField, field)
+	_, ok, err := unstructured.NestedInt64(workload.Object, SpecField, field)
 	if err != nil {
 		return err
 	}
 	if ok {
-		err := unstructured.SetNestedField(workload.Object, desireReplica, util.SpecField, field)
+		err := unstructured.SetNestedField(workload.Object, desireReplica, SpecField, field)
 		if err != nil {
 			return err
 		}

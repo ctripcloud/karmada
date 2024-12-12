@@ -183,7 +183,7 @@ func (c *Controller) buildImpersonationClusterRole(ctx context.Context, cluster 
 		Rules: rules,
 	}
 
-	clusterRoleObj, err := helper.ToUnstructured(impersonationClusterRole)
+	clusterRoleObj, err := util.ToUnstructured(impersonationClusterRole)
 	if err != nil {
 		klog.Errorf("Failed to transform ClusterRole %s. Error: %v", impersonationClusterRole.GetName(), err)
 		return err
@@ -218,7 +218,7 @@ func (c *Controller) buildImpersonationClusterRoleBinding(ctx context.Context, c
 		},
 	}
 
-	clusterRoleBindingObj, err := helper.ToUnstructured(impersonatorClusterRoleBinding)
+	clusterRoleBindingObj, err := util.ToUnstructured(impersonatorClusterRoleBinding)
 	if err != nil {
 		klog.Errorf("Failed to transform ClusterRoleBinding %s. Error: %v", impersonatorClusterRoleBinding.GetName(), err)
 		return err

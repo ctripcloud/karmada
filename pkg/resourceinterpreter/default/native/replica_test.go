@@ -28,7 +28,7 @@ import (
 	"k8s.io/utils/ptr"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 func Test_getAllDefaultReplicaInterpreter(t *testing.T) {
@@ -75,7 +75,7 @@ func Test_deployReplica(t *testing.T) {
 		},
 	}
 
-	unstructuredObject, err := helper.ToUnstructured(object)
+	unstructuredObject, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object, error: %v", err)
 		return
@@ -124,7 +124,7 @@ func Test_statefulSetReplica(t *testing.T) {
 			},
 		},
 	}
-	unstructuredObject, err := helper.ToUnstructured(object)
+	unstructuredObject, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object, error: %v", err)
 		return
@@ -174,7 +174,7 @@ func Test_jobReplica(t *testing.T) {
 			},
 		},
 	}
-	unstructuredObject, err := helper.ToUnstructured(object)
+	unstructuredObject, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object, error: %v", err)
 		return
@@ -218,7 +218,7 @@ func Test_podReplica(t *testing.T) {
 			},
 		},
 	}
-	unstructuredObject, err := helper.ToUnstructured(object)
+	unstructuredObject, err := util.ToUnstructured(object)
 	if err != nil {
 		klog.Errorf("Failed to transform object, error: %v", err)
 		return

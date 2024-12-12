@@ -361,7 +361,7 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(ctx context.Co
 	}
 
 	endpointSlice := &discoveryv1.EndpointSlice{}
-	if err := helper.ConvertToTypedObject(unstructuredObj, endpointSlice); err != nil {
+	if err := util.ConvertToTypedObject(unstructuredObj, endpointSlice); err != nil {
 		klog.Errorf("Failed to convert unstructured object to typed object, error is: %v", err)
 		return err
 	}
@@ -390,7 +390,7 @@ func (c *EndpointsliceDispatchController) ensureEndpointSliceWork(ctx context.Co
 			util.MultiClusterServiceNamespaceLabel: mcs.Namespace,
 		},
 	}
-	unstructuredEPS, err := helper.ToUnstructured(endpointSlice)
+	unstructuredEPS, err := util.ToUnstructured(endpointSlice)
 	if err != nil {
 		klog.Errorf("Failed to convert typed object to unstructured object, error is: %v", err)
 		return err

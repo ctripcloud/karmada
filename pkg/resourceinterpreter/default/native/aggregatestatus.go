@@ -59,7 +59,7 @@ func getAllDefaultAggregateStatusInterpreter() map[schema.GroupVersionKind]aggre
 
 func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	deploy := &appsv1.Deployment{}
-	err := helper.ConvertToTypedObject(object, deploy)
+	err := util.ConvertToTypedObject(object, deploy)
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +117,12 @@ func aggregateDeploymentStatus(object *unstructured.Unstructured, aggregatedStat
 	oldStatus.AvailableReplicas = newStatus.AvailableReplicas
 	oldStatus.UnavailableReplicas = newStatus.UnavailableReplicas
 
-	return helper.ToUnstructured(deploy)
+	return util.ToUnstructured(deploy)
 }
 
 func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	service := &corev1.Service{}
-	err := helper.ConvertToTypedObject(object, service)
+	err := util.ConvertToTypedObject(object, service)
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +161,12 @@ func aggregateServiceStatus(object *unstructured.Unstructured, aggregatedStatusI
 	}
 
 	service.Status = *newStatus
-	return helper.ToUnstructured(service)
+	return util.ToUnstructured(service)
 }
 
 func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	ingress := &networkingv1.Ingress{}
-	err := helper.ConvertToTypedObject(object, ingress)
+	err := util.ConvertToTypedObject(object, ingress)
 	if err != nil {
 		return nil, err
 	}
@@ -200,12 +200,12 @@ func aggregateIngressStatus(object *unstructured.Unstructured, aggregatedStatusI
 	}
 
 	ingress.Status = *newStatus
-	return helper.ToUnstructured(ingress)
+	return util.ToUnstructured(ingress)
 }
 
 func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	job := &batchv1.Job{}
-	err := helper.ConvertToTypedObject(object, job)
+	err := util.ConvertToTypedObject(object, job)
 	if err != nil {
 		return nil, err
 	}
@@ -226,12 +226,12 @@ func aggregateJobStatus(object *unstructured.Unstructured, aggregatedStatusItems
 	}
 
 	job.Status = *newStatus
-	return helper.ToUnstructured(job)
+	return util.ToUnstructured(job)
 }
 
 func aggregateCronJobStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	cronjob := &batchv1.CronJob{}
-	err := helper.ConvertToTypedObject(object, cronjob)
+	err := util.ConvertToTypedObject(object, cronjob)
 	if err != nil {
 		return nil, err
 	}
@@ -267,12 +267,12 @@ func aggregateCronJobStatus(object *unstructured.Unstructured, aggregatedStatusI
 	cronjob.Status.Active = newStatus.Active
 	cronjob.Status.LastScheduleTime = newStatus.LastScheduleTime
 	cronjob.Status.LastSuccessfulTime = newStatus.LastSuccessfulTime
-	return helper.ToUnstructured(cronjob)
+	return util.ToUnstructured(cronjob)
 }
 
 func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	daemonSet := &appsv1.DaemonSet{}
-	err := helper.ConvertToTypedObject(object, daemonSet)
+	err := util.ConvertToTypedObject(object, daemonSet)
 	if err != nil {
 		return nil, err
 	}
@@ -328,12 +328,12 @@ func aggregateDaemonSetStatus(object *unstructured.Unstructured, aggregatedStatu
 	oldStatus.UpdatedNumberScheduled = newStatus.UpdatedNumberScheduled
 	oldStatus.NumberUnavailable = newStatus.NumberUnavailable
 
-	return helper.ToUnstructured(daemonSet)
+	return util.ToUnstructured(daemonSet)
 }
 
 func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	statefulSet := &appsv1.StatefulSet{}
-	err := helper.ConvertToTypedObject(object, statefulSet)
+	err := util.ConvertToTypedObject(object, statefulSet)
 	if err != nil {
 		return nil, err
 	}
@@ -390,18 +390,18 @@ func aggregateStatefulSetStatus(object *unstructured.Unstructured, aggregatedSta
 	oldStatus.Replicas = newStatus.Replicas
 	oldStatus.UpdatedReplicas = newStatus.UpdatedReplicas
 
-	return helper.ToUnstructured(statefulSet)
+	return util.ToUnstructured(statefulSet)
 }
 
 func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	pod := &corev1.Pod{}
-	err := helper.ConvertToTypedObject(object, pod)
+	err := util.ConvertToTypedObject(object, pod)
 	if err != nil {
 		return nil, err
 	}
 
 	if aggregatedStatusItems == nil {
-		return helper.ToUnstructured(pod)
+		return util.ToUnstructured(pod)
 	}
 
 	newStatus := &corev1.PodStatus{}
@@ -462,12 +462,12 @@ func aggregatePodStatus(object *unstructured.Unstructured, aggregatedStatusItems
 	}
 
 	pod.Status = *newStatus
-	return helper.ToUnstructured(pod)
+	return util.ToUnstructured(pod)
 }
 
 func aggregatePersistentVolumeStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	pv := &corev1.PersistentVolume{}
-	err := helper.ConvertToTypedObject(object, pv)
+	err := util.ConvertToTypedObject(object, pv)
 	if err != nil {
 		return nil, err
 	}
@@ -515,12 +515,12 @@ func aggregatePersistentVolumeStatus(object *unstructured.Unstructured, aggregat
 	}
 
 	pv.Status = *newStatus
-	return helper.ToUnstructured(pv)
+	return util.ToUnstructured(pv)
 }
 
 func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	pvc := &corev1.PersistentVolumeClaim{}
-	err := helper.ConvertToTypedObject(object, pvc)
+	err := util.ConvertToTypedObject(object, pvc)
 	if err != nil {
 		return nil, err
 	}
@@ -553,12 +553,12 @@ func aggregatePersistentVolumeClaimStatus(object *unstructured.Unstructured, agg
 	}
 
 	pvc.Status = *newStatus
-	return helper.ToUnstructured(pvc)
+	return util.ToUnstructured(pvc)
 }
 
 func aggregatePodDisruptionBudgetStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	pdb := &policyv1.PodDisruptionBudget{}
-	err := helper.ConvertToTypedObject(object, pdb)
+	err := util.ConvertToTypedObject(object, pdb)
 	if err != nil {
 		return nil, err
 	}
@@ -596,12 +596,12 @@ func aggregatePodDisruptionBudgetStatus(object *unstructured.Unstructured, aggre
 	}
 
 	pdb.Status = *newStatus
-	return helper.ToUnstructured(pdb)
+	return util.ToUnstructured(pdb)
 }
 
 func aggregateHorizontalPodAutoscalerStatus(object *unstructured.Unstructured, aggregatedStatusItems []workv1alpha2.AggregatedStatusItem) (*unstructured.Unstructured, error) {
 	hpa := &autoscalingv2.HorizontalPodAutoscaler{}
-	err := helper.ConvertToTypedObject(object, hpa)
+	err := util.ConvertToTypedObject(object, hpa)
 	if err != nil {
 		return nil, err
 	}
@@ -629,5 +629,5 @@ func aggregateHorizontalPodAutoscalerStatus(object *unstructured.Unstructured, a
 	}
 
 	hpa.Status = *newStatus
-	return helper.ToUnstructured(hpa)
+	return util.ToUnstructured(hpa)
 }

@@ -136,7 +136,7 @@ func (c *EndpointSliceController) collectEndpointSliceFromWork(ctx context.Conte
 		}
 
 		endpointSlice := &discoveryv1.EndpointSlice{}
-		err = helper.ConvertToTypedObject(unstructObj, endpointSlice)
+		err = util.ConvertToTypedObject(unstructObj, endpointSlice)
 		if err != nil {
 			klog.Errorf("Failed to convert unstructured to typed object: %v", err)
 			return err

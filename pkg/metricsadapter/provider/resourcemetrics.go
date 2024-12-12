@@ -38,7 +38,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
@@ -624,7 +623,7 @@ func metricsConvertV1beta1PodToInternalPod(objs ...unstructured.Unstructured) ([
 
 	for index := range objs {
 		single := metricsv1beta1.PodMetrics{}
-		if err := helper.ConvertToTypedObject(&objs[index], &single); err != nil {
+		if err := util.ConvertToTypedObject(&objs[index], &single); err != nil {
 			klog.Errorf("Failed to convert to typed object: %v", err)
 			return nil, err
 		}
@@ -651,7 +650,7 @@ func metricsConvertV1beta1NodeToInternalNode(objs ...unstructured.Unstructured) 
 
 	for index := range objs {
 		single := metricsv1beta1.NodeMetrics{}
-		if err := helper.ConvertToTypedObject(&objs[index], &single); err != nil {
+		if err := util.ConvertToTypedObject(&objs[index], &single); err != nil {
 			klog.Errorf("Failed to convert to typed object: %v", err)
 			return nil, err
 		}

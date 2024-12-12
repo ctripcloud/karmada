@@ -304,7 +304,7 @@ func (c *MCSController) propagateMultiClusterService(ctx context.Context, mcs *n
 			},
 		}
 
-		mcsObj, err := helper.ToUnstructured(mcs)
+		mcsObj, err := util.ToUnstructured(mcs)
 		if err != nil {
 			klog.Errorf("Failed to convert MultiClusterService(%s/%s) to unstructured object, err is %v", mcs.Namespace, mcs.Name, err)
 			return err

@@ -926,7 +926,7 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 		Spec:   clusterv1alpha1.ClusterSpec{},
 		Status: clusterv1alpha1.ClusterStatus{},
 	}
-	clusterObj, _ := helper.ToUnstructured(cluster)
+	clusterObj, _ := util.ToUnstructured(cluster)
 	clusterJSON, _ := json.Marshal(clusterObj)
 
 	t.Run("normal case", func(t *testing.T) {
@@ -941,7 +941,7 @@ func TestWorkStatusController_buildStatusIdentifier(t *testing.T) {
 	})
 
 	t.Run("failed to GetManifestIndex", func(t *testing.T) {
-		wrongClusterObj, _ := helper.ToUnstructured(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue))
+		wrongClusterObj, _ := util.ToUnstructured(newCluster("cluster", clusterv1alpha1.ClusterConditionReady, metav1.ConditionTrue))
 		wrongClusterJSON, _ := json.Marshal(wrongClusterObj)
 		work.Spec.Workload.Manifests = []workv1alpha1.Manifest{
 			{
@@ -1055,7 +1055,7 @@ func TestWorkStatusController_interpretHealth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			work := testhelper.NewWork(tt.clusterObj.GetName(), tt.clusterObj.GetNamespace(), string(uuid.NewUUID()), []byte{})
-			obj, err := helper.ToUnstructured(tt.clusterObj)
+			obj, err := util.ToUnstructured(tt.clusterObj)
 			assert.NoError(t, err)
 
 			resourceHealth := c.interpretHealth(obj, work)

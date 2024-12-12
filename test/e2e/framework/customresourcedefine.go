@@ -30,6 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	karmada "github.com/karmada-io/karmada/pkg/generated/clientset/versioned"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -38,7 +39,7 @@ var crdGVR = schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version:
 // CreateCRD create CustomResourceDefinition with dynamic client.
 func CreateCRD(client dynamic.Interface, crd *apiextensionsv1.CustomResourceDefinition) {
 	ginkgo.By(fmt.Sprintf("Creating crd(%s)", crd.Name), func() {
-		unstructuredObj, err := helper.ToUnstructured(crd)
+		unstructuredObj, err := util.ToUnstructured(crd)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		_, err = client.Resource(crdGVR).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
@@ -103,7 +104,7 @@ func WaitCRDFitWith(client dynamic.Interface, crdName string, fit func(crd *apie
 		if err != nil {
 			return false
 		}
-		err = helper.ConvertToTypedObject(unstructured, crd)
+		err = util.ConvertToTypedObject(unstructured, crd)
 		if err != nil {
 			return false
 		}

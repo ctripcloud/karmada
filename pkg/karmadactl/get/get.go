@@ -53,7 +53,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/karmadactl/util"
 	karmadautil "github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 const (
@@ -455,7 +454,7 @@ func (g *CommandGetOptions) printObjs(objs []Obj, allErrs *[]error, _ []string) 
 			setNoAdoption(mapping)
 			g.setColumnDefinition(table)
 
-			printObj, err := helper.ToUnstructured(table)
+			printObj, err := karmadautil.ToUnstructured(table)
 			if err != nil {
 				*allErrs = append(*allErrs, err)
 				return
@@ -723,7 +722,7 @@ func (g *CommandGetOptions) watch(watchObjs []WatchObj) error {
 				objrow.ColumnDefinitions = nil
 			}
 
-			printObj, err := helper.ToUnstructured(objrow)
+			printObj, err := karmadautil.ToUnstructured(objrow)
 			if err != nil {
 				return err
 			}
@@ -790,7 +789,7 @@ func (g *CommandGetOptions) watchMultiClusterObj(watchObjs []WatchObj, mapping *
 					// not need to print ColumnDefinitions
 					objrow.ColumnDefinitions = nil
 
-					printObj, err := helper.ToUnstructured(objrow)
+					printObj, err := karmadautil.ToUnstructured(objrow)
 					if err != nil {
 						return false, err
 					}

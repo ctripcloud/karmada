@@ -28,9 +28,9 @@ import (
 	"k8s.io/klog/v2"
 
 	configv1alpha1 "github.com/karmada-io/karmada/pkg/apis/config/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
 var resourceInterpreterCustomizationsGVR = schema.GroupVersionResource{
@@ -105,7 +105,7 @@ func (configManager *interpreterConfigManager) updateConfiguration() {
 	configs := make([]*configv1alpha1.ResourceInterpreterCustomization, len(configurations))
 	for index, c := range configurations {
 		config := &configv1alpha1.ResourceInterpreterCustomization{}
-		if err = helper.ConvertToTypedObject(c, config); err != nil {
+		if err = util.ConvertToTypedObject(c, config); err != nil {
 			klog.Errorf("Failed to transform ResourceInterpreterCustomization: %v", err)
 			return
 		}

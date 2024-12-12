@@ -30,7 +30,7 @@ import (
 	"k8s.io/klog/v2"
 
 	workloadv1alpha1 "github.com/karmada-io/karmada/examples/customresourceinterpreter/apis/workload/v1alpha1"
-	"github.com/karmada-io/karmada/pkg/util/helper"
+	"github.com/karmada-io/karmada/pkg/util"
 )
 
 var workloadGVR = workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
@@ -38,7 +38,7 @@ var workloadGVR = workloadv1alpha1.SchemeGroupVersion.WithResource("workloads")
 // CreateWorkload creates Workload with dynamic client
 func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload) {
 	ginkgo.By(fmt.Sprintf("Creating workload(%s/%s)", workload.Namespace, workload.Name), func() {
-		unstructuredObj, err := helper.ToUnstructured(workload)
+		unstructuredObj, err := util.ToUnstructured(workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		_, err = client.Resource(workloadGVR).Namespace(workload.Namespace).Create(context.TODO(), unstructuredObj, metav1.CreateOptions{})
@@ -49,7 +49,7 @@ func CreateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workloa
 // UpdateWorkload updates Workload with dynamic client
 func UpdateWorkload(client dynamic.Interface, workload *workloadv1alpha1.Workload, clusterName string, subresources ...string) {
 	ginkgo.By(fmt.Sprintf("Update workload(%s/%s) in cluster(%s)", workload.Namespace, workload.Name, clusterName), func() {
-		newUnstructuredObj, err := helper.ToUnstructured(workload)
+		newUnstructuredObj, err := util.ToUnstructured(workload)
 		gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 		gomega.Eventually(func() error {

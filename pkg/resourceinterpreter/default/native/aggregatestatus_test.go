@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	workv1alpha2 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha2"
+	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/helper"
 )
 
@@ -51,8 +52,8 @@ func TestAggregateDeploymentStatus(t *testing.T) {
 
 	oldDeploy := &appsv1.Deployment{}
 	newDeploy := &appsv1.Deployment{Status: appsv1.DeploymentStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, UnavailableReplicas: 0}}
-	oldObj, _ := helper.ToUnstructured(oldDeploy)
-	newObj, _ := helper.ToUnstructured(newDeploy)
+	oldObj, _ := util.ToUnstructured(oldDeploy)
+	newObj, _ := util.ToUnstructured(newDeploy)
 
 	tests := []struct {
 		name                  string
@@ -98,14 +99,14 @@ func TestAggregateServiceStatus(t *testing.T) {
 	serviceClusterIP := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeClusterIP}}
 	serviceNodePort := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeNodePort}}
 	serviceExternalName := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeExternalName}}
-	objServiceClusterIP, _ := helper.ToUnstructured(serviceClusterIP)
-	objServiceNodePort, _ := helper.ToUnstructured(serviceNodePort)
-	objServiceExternalName, _ := helper.ToUnstructured(serviceExternalName)
+	objServiceClusterIP, _ := util.ToUnstructured(serviceClusterIP)
+	objServiceNodePort, _ := util.ToUnstructured(serviceNodePort)
+	objServiceExternalName, _ := util.ToUnstructured(serviceExternalName)
 
 	oldServiceLoadBalancer := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer}}
 	newServiceLoadBalancer := &corev1.Service{Spec: corev1.ServiceSpec{Type: corev1.ServiceTypeLoadBalancer}, Status: corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
-	oldObjServiceLoadBalancer, _ := helper.ToUnstructured(oldServiceLoadBalancer)
-	newObjServiceLoadBalancer, _ := helper.ToUnstructured(newServiceLoadBalancer)
+	oldObjServiceLoadBalancer, _ := util.ToUnstructured(oldServiceLoadBalancer)
+	newObjServiceLoadBalancer, _ := util.ToUnstructured(newServiceLoadBalancer)
 
 	tests := []struct {
 		name                  string
@@ -162,8 +163,8 @@ func TestAggregateIngressStatus(t *testing.T) {
 
 	oldIngress := &networkingv1.Ingress{}
 	newIngress := &networkingv1.Ingress{Status: networkingv1.IngressStatus{LoadBalancer: networkingv1.IngressLoadBalancerStatus{Ingress: []networkingv1.IngressLoadBalancerIngress{{IP: "8.8.8.8", Hostname: "member1"}}}}}
-	oldObj, _ := helper.ToUnstructured(oldIngress)
-	newObj, _ := helper.ToUnstructured(newIngress)
+	oldObj, _ := util.ToUnstructured(oldIngress)
+	newObj, _ := util.ToUnstructured(newIngress)
 
 	tests := []struct {
 		name                  string
@@ -224,11 +225,11 @@ func TestAggregateJobStatus(t *testing.T) {
 
 	oldJob := &batchv1.Job{}
 	newJob := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 2, Failed: 0, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Reason: "Completed", Message: "Job completed"}}}}
-	oldObj, _ := helper.ToUnstructured(oldJob)
-	newObj, _ := helper.ToUnstructured(newJob)
+	oldObj, _ := util.ToUnstructured(oldJob)
+	newObj, _ := util.ToUnstructured(newJob)
 
 	newJobWithJobFailed := &batchv1.Job{Status: batchv1.JobStatus{Active: 0, Succeeded: 1, Failed: 1, StartTime: &startTime, CompletionTime: &completionTime, Conditions: []batchv1.JobCondition{{Type: batchv1.JobFailed, Status: corev1.ConditionTrue, Reason: "JobFailed", Message: "Job executed failed in member clusters member2"}}}}
-	newObjWithJobFailed, _ := helper.ToUnstructured(newJobWithJobFailed)
+	newObjWithJobFailed, _ := util.ToUnstructured(newJobWithJobFailed)
 
 	tests := []struct {
 		name                  string
@@ -282,8 +283,8 @@ func TestAggregateDaemonSetStatus(t *testing.T) {
 
 	oldDaemonSet := &appsv1.DaemonSet{}
 	newDaemonSet := &appsv1.DaemonSet{Status: appsv1.DaemonSetStatus{CurrentNumberScheduled: 2, NumberMisscheduled: 0, DesiredNumberScheduled: 2, NumberReady: 2, UpdatedNumberScheduled: 2, NumberAvailable: 2, NumberUnavailable: 0}}
-	oldObj, _ := helper.ToUnstructured(oldDaemonSet)
-	newObj, _ := helper.ToUnstructured(newDaemonSet)
+	oldObj, _ := util.ToUnstructured(oldDaemonSet)
+	newObj, _ := util.ToUnstructured(newDaemonSet)
 
 	tests := []struct {
 		name                  string
@@ -327,8 +328,8 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 
 	oldStatefulSet := &appsv1.StatefulSet{}
 	newStatefulSet := &appsv1.StatefulSet{Status: appsv1.StatefulSetStatus{Replicas: 2, ReadyReplicas: 2, UpdatedReplicas: 2, AvailableReplicas: 2, CurrentReplicas: 2}}
-	oldObj, _ := helper.ToUnstructured(oldStatefulSet)
-	newObj, _ := helper.ToUnstructured(newStatefulSet)
+	oldObj, _ := util.ToUnstructured(oldStatefulSet)
+	newObj, _ := util.ToUnstructured(newStatefulSet)
 
 	tests := []struct {
 		name                  string
@@ -358,13 +359,13 @@ func TestAggregateStatefulSetStatus(t *testing.T) {
 
 func cleanUnstructuredJobConditionTime(object *unstructured.Unstructured) *unstructured.Unstructured {
 	job := &batchv1.Job{}
-	_ = helper.ConvertToTypedObject(object, job)
+	_ = util.ConvertToTypedObject(object, job)
 	for i := range job.Status.Conditions {
 		cond := &job.Status.Conditions[i]
 		cond.LastProbeTime = metav1.Time{}
 		cond.LastTransitionTime = metav1.Time{}
 	}
-	ret, _ := helper.ToUnstructured(job)
+	ret, _ := util.ToUnstructured(job)
 	return ret
 }
 
@@ -447,7 +448,7 @@ func TestAggregatePodStatus(t *testing.T) {
 			},
 		},
 	}
-	newInitContainerObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+	newInitContainerObj, _ := util.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
 		InitContainerStatuses: newInitContainerStatuses1,
 		Phase:                 corev1.PodPending,
 	}})
@@ -460,8 +461,8 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member1", Status: initContainerRaw1, Applied: true},
 	}
 
-	curObj, _ := helper.ToUnstructured(&corev1.Pod{})
-	newObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+	curObj, _ := util.ToUnstructured(&corev1.Pod{})
+	newObj, _ := util.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
 		ContainerStatuses: newContainerStatuses1,
 		Phase:             corev1.PodRunning,
 	}})
@@ -558,7 +559,7 @@ func TestAggregatePodStatus(t *testing.T) {
 		ContainerStatuses: newContainerStatuses2,
 		Phase:             corev1.PodPending,
 	}}
-	newObjFailed, _ := helper.ToUnstructured(newPodFailed)
+	newObjFailed, _ := util.ToUnstructured(newPodFailed)
 
 	containerStatusesRunning := []corev1.ContainerStatus{
 		{
@@ -604,7 +605,7 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member2", Status: nil, Applied: true},
 	}
 
-	failObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+	failObj, _ := util.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
 		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesFail[0]},
 		Phase:             corev1.PodFailed,
 	}})
@@ -616,12 +617,12 @@ func TestAggregatePodStatus(t *testing.T) {
 		{ClusterName: "member2", Status: rawSucceeded, Applied: true},
 	}
 
-	succeededObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+	succeededObj, _ := util.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
 		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0], newContainerStatusesSucceeded[0]},
 		Phase:             corev1.PodRunning,
 	}})
 
-	pendingObj, _ := helper.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
+	pendingObj, _ := util.ToUnstructured(&corev1.Pod{Status: corev1.PodStatus{
 		ContainerStatuses: []corev1.ContainerStatus{containerStatusesRunning[0]},
 		Phase:             corev1.PodPending,
 	}})
@@ -722,16 +723,16 @@ func TestAggregatePVCStatus(t *testing.T) {
 
 	// test aggregatePersistentVolumeClaimStatus function
 	oldPVC := &corev1.PersistentVolumeClaim{}
-	oldObj, _ := helper.ToUnstructured(oldPVC)
+	oldObj, _ := util.ToUnstructured(oldPVC)
 
 	boundNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimBound}}
-	newBoundPVCObj, _ := helper.ToUnstructured(boundNewPVC)
+	newBoundPVCObj, _ := util.ToUnstructured(boundNewPVC)
 
 	lostNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimLost}}
-	newLostPVCObj, _ := helper.ToUnstructured(lostNewPVC)
+	newLostPVCObj, _ := util.ToUnstructured(lostNewPVC)
 
 	pendingNewPVC := &corev1.PersistentVolumeClaim{Status: corev1.PersistentVolumeClaimStatus{Phase: corev1.ClaimPending}}
-	newPendingPVCObj, _ := helper.ToUnstructured(pendingNewPVC)
+	newPendingPVCObj, _ := util.ToUnstructured(pendingNewPVC)
 
 	tests := []struct {
 		name                  string
@@ -833,22 +834,22 @@ func TestAggregatePVStatus(t *testing.T) {
 
 	// test aggregatePersistentVolumeStatus function
 	oldPVC := &corev1.PersistentVolume{}
-	oldObj, _ := helper.ToUnstructured(oldPVC)
+	oldObj, _ := util.ToUnstructured(oldPVC)
 
 	availableNewPv := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeAvailable}}
-	newAvailablePvObj, _ := helper.ToUnstructured(availableNewPv)
+	newAvailablePvObj, _ := util.ToUnstructured(availableNewPv)
 
 	boundNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeBound}}
-	newBoundPVObj, _ := helper.ToUnstructured(boundNewPV)
+	newBoundPVObj, _ := util.ToUnstructured(boundNewPV)
 
 	releaseNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeReleased}}
-	newReleasePVObj, _ := helper.ToUnstructured(releaseNewPV)
+	newReleasePVObj, _ := util.ToUnstructured(releaseNewPV)
 
 	failedNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumeFailed}}
-	newFailedPVObj, _ := helper.ToUnstructured(failedNewPV)
+	newFailedPVObj, _ := util.ToUnstructured(failedNewPV)
 
 	pendingNewPV := &corev1.PersistentVolume{Status: corev1.PersistentVolumeStatus{Phase: corev1.VolumePending}}
-	newPendingPVObj, _ := helper.ToUnstructured(pendingNewPV)
+	newPendingPVObj, _ := util.ToUnstructured(pendingNewPV)
 
 	tests := []struct {
 		name                  string
@@ -900,7 +901,7 @@ func TestAggregatePVStatus(t *testing.T) {
 }
 
 func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
-	currPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+	currPdbObj, _ := util.ToUnstructured(&policyv1.PodDisruptionBudget{
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     1,
 			DesiredHealthy:     1,
@@ -909,7 +910,7 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 		},
 	})
 
-	expectedPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+	expectedPdbObj, _ := util.ToUnstructured(&policyv1.PodDisruptionBudget{
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     2,
 			DesiredHealthy:     2,
@@ -937,7 +938,7 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 		},
 	})
 
-	expectedUnhealthyPdbObj, _ := helper.ToUnstructured(&policyv1.PodDisruptionBudget{
+	expectedUnhealthyPdbObj, _ := util.ToUnstructured(&policyv1.PodDisruptionBudget{
 		Status: policyv1.PodDisruptionBudgetStatus{
 			CurrentHealthy:     0,
 			DesiredHealthy:     2,
@@ -993,7 +994,7 @@ func TestAggregatedPodDisruptionBudgetStatus(t *testing.T) {
 }
 
 func Test_aggregateCronJobStatus(t *testing.T) {
-	currCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+	currCronJobObj, _ := util.ToUnstructured(&batchv1.CronJob{
 		Status: batchv1.CronJobStatus{
 			Active:             []corev1.ObjectReference{},
 			LastScheduleTime:   nil,
@@ -1031,7 +1032,7 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 	})
 	parse, _ := time.Parse("2006-01-02 15:04:05", "2023-02-08 07:17:00")
 	successfulTime := metav1.NewTime(parse)
-	expectedCronJobObj, _ := helper.ToUnstructured(&batchv1.CronJob{
+	expectedCronJobObj, _ := util.ToUnstructured(&batchv1.CronJob{
 		Status: batchv1.CronJobStatus{
 			Active: []corev1.ObjectReference{
 				{
@@ -1081,7 +1082,7 @@ func Test_aggregateCronJobStatus(t *testing.T) {
 }
 
 func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
-	curHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+	curHPA, _ := util.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
 		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
 			CurrentReplicas: 0,
 			DesiredReplicas: 0,
@@ -1095,7 +1096,7 @@ func Test_aggregateHorizontalPodAutoscalerStatus(t *testing.T) {
 		"currentReplicas": 4,
 		"desiredReplicas": 4,
 	})
-	expectHPA, _ := helper.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
+	expectHPA, _ := util.ToUnstructured(&autoscalingv2.HorizontalPodAutoscaler{
 		Status: autoscalingv2.HorizontalPodAutoscalerStatus{
 			CurrentReplicas: 6,
 			DesiredReplicas: 6,

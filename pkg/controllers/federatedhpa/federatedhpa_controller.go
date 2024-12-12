@@ -55,7 +55,6 @@ import (
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/typedmanager"
-	"github.com/karmada-io/karmada/pkg/util/helper"
 	"github.com/karmada-io/karmada/pkg/util/lifted/selectors"
 )
 
@@ -283,7 +282,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 	}
 
 	templateScale := &autoscalingv1.Scale{}
-	err = helper.ConvertToTypedObject(templateScaleObj, templateScale)
+	err = util.ConvertToTypedObject(templateScaleObj, templateScale)
 	if err != nil {
 		return fmt.Errorf("failed to convert unstructured.Unstructured to scale: %v", err)
 	}
@@ -364,7 +363,7 @@ func (c *FHPAController) reconcileAutoscaler(ctx context.Context, hpa *autoscali
 	}
 
 	if rescale {
-		if err = helper.ApplyReplica(templateScaleObj, int64(desiredReplicas), util.ReplicasField); err != nil {
+		if err = util.ApplyReplica(templateScaleObj, int64(desiredReplicas), util.ReplicasField); err != nil {
 			return err
 		}
 		err = c.Client.SubResource("scale").Update(ctx, targetResource, client.WithSubResourceBody(templateScaleObj))

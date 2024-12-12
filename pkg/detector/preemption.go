@@ -125,7 +125,7 @@ func (d *ResourceDetector) preemptPropagationPolicy(resourceTemplate *unstructur
 	}
 
 	claimedPolicy := &policyv1alpha1.PropagationPolicy{}
-	if err = helper.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
+	if err = util.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
 		klog.Errorf("Failed to convert PropagationPolicy from unstructured object: %v.", err)
 		return err
 	}
@@ -203,7 +203,7 @@ func (d *ResourceDetector) preemptClusterPropagationPolicy(resourceTemplate *uns
 	}
 
 	claimedPolicy := &policyv1alpha1.ClusterPropagationPolicy{}
-	if err = helper.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
+	if err = util.ConvertToTypedObject(claimedPolicyObj, claimedPolicy); err != nil {
 		klog.Errorf("Failed to convert ClusterPropagationPolicy from unstructured object: %v.", err)
 		return err
 	}
@@ -278,7 +278,7 @@ func (d *ResourceDetector) HandleDeprioritizedPropagationPolicy(oldPolicy policy
 	sortedPotentialKeys := pq.NewWith(priorityDescendingComparator)
 	for i := range policies {
 		var potentialPolicy policyv1alpha1.PropagationPolicy
-		if err = helper.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
+		if err = util.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
 			klog.Errorf("Failed to convert typed PropagationPolicy: %v", err)
 			continue
 		}
@@ -324,7 +324,7 @@ func (d *ResourceDetector) HandleDeprioritizedClusterPropagationPolicy(oldPolicy
 	sortedPotentialKeys := pq.NewWith(priorityDescendingComparator)
 	for i := range policies {
 		var potentialPolicy policyv1alpha1.ClusterPropagationPolicy
-		if err = helper.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
+		if err = util.ConvertToTypedObject(policies[i], &potentialPolicy); err != nil {
 			klog.Errorf("Failed to convert typed ClusterPropagationPolicy: %v", err)
 			continue
 		}
