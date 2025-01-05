@@ -532,6 +532,10 @@ func TestOnUpdate(t *testing.T) {
 		{
 			name: "core v1 object",
 			oldObj: &corev1.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Pod",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-pod",
 					Namespace: "default",
@@ -541,6 +545,10 @@ func TestOnUpdate(t *testing.T) {
 				},
 			},
 			newObj: &corev1.Pod{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Pod",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-pod",
 					Namespace: "default",
@@ -1023,7 +1031,7 @@ func TestApplyClusterPolicy(t *testing.T) {
 	}
 }
 
-//Helper Functions
+// Helper Functions
 
 // setupTestScheme creates a runtime scheme with necessary types for testing
 func setupTestScheme() *runtime.Scheme {
