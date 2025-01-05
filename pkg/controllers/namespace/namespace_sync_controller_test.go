@@ -102,6 +102,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should be synced",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-namespace",
 				},
@@ -120,6 +124,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should not be synced",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kube-system",
 				},
@@ -144,6 +152,10 @@ func TestController_Reconcile(t *testing.T) {
 		{
 			name: "Namespace should not be synced - kube-public",
 			namespace: &corev1.Namespace{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "Namespace",
+					APIVersion: corev1.SchemeGroupVersion.String(),
+				},
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "kube-public",
 				},
@@ -247,8 +259,15 @@ func TestController_buildWorks(t *testing.T) {
 	_ = policyv1alpha1.Install(scheme)
 
 	namespace := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Namespace",
+			APIVersion: corev1.SchemeGroupVersion.String(),
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test-namespace",
+			Labels: map[string]string{
+				"overridden": "false",
+			},
 		},
 	}
 
@@ -272,7 +291,7 @@ func TestController_buildWorks(t *testing.T) {
 		Spec: policyv1alpha1.OverrideSpec{
 			ResourceSelectors: []policyv1alpha1.ResourceSelector{
 				{
-					APIVersion: "v1",
+					APIVersion: corev1.SchemeGroupVersion.String(),
 					Kind:       "Namespace",
 					Name:       "test-namespace",
 				},
