@@ -31,6 +31,7 @@ import (
 	cliflag "k8s.io/component-base/cli/flag"
 	"k8s.io/component-base/term"
 	"k8s.io/klog/v2"
+	"k8s.io/utils/pointer"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/config"
@@ -216,6 +217,7 @@ func run(ctx context.Context, opts *options.Options) error {
 				clusterv1alpha1.SchemeGroupVersion.WithKind("Cluster").GroupKind().String(): opts.ConcurrentClusterSyncs,
 			},
 			CacheSyncTimeout: opts.ClusterCacheSyncTimeout.Duration,
+			UsePriorityQueue: pointer.Bool(true),
 		},
 		NewCache: func(config *rest.Config, opts cache.Options) (cache.Cache, error) {
 			opts.DefaultTransform = fedinformer.StripUnusedFields
