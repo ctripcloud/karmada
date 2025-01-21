@@ -34,8 +34,8 @@ import (
 	genericoptions "k8s.io/apiserver/pkg/server/options"
 	"k8s.io/apiserver/pkg/storage/storagebackend"
 	utilfeature "k8s.io/apiserver/pkg/util/feature"
-	utilversion "k8s.io/apiserver/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
+	utilversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 	netutils "k8s.io/utils/net"
 

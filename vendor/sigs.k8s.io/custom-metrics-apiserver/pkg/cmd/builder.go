@@ -17,7 +17,6 @@ limitations under the License.
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -361,11 +360,11 @@ func (b *AdapterBase) Informers() (informers.SharedInformerFactory, error) {
 }
 
 // Run runs this custom metrics adapter until the given stop channel is closed.
-func (b *AdapterBase) Run(ctx context.Context) error {
+func (b *AdapterBase) Run(stopCh <-chan struct{}) error {
 	server, err := b.Server()
 	if err != nil {
 		return err
 	}
 
-	return server.GenericAPIServer.PrepareRun().RunWithContext(ctx)
+	return server.GenericAPIServer.PrepareRun().Run(stopCh)
 }

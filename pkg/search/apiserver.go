@@ -21,7 +21,7 @@ import (
 	"k8s.io/apiserver/pkg/registry/generic"
 	"k8s.io/apiserver/pkg/registry/rest"
 	genericapiserver "k8s.io/apiserver/pkg/server"
-	utilversion "k8s.io/apiserver/pkg/util/version"
+	utilversion "k8s.io/component-base/version"
 	"k8s.io/klog/v2"
 
 	searchapis "github.com/karmada-io/karmada/pkg/apis/search"
