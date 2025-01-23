@@ -58,6 +58,7 @@ type MetricsController struct {
 	MultiClusterDiscovery multiclient.MultiClusterDiscoveryInterface
 	queue                 workqueue.TypedRateLimitingInterface[any]
 	restConfig            *rest.Config
+	clusterClientOption   *util.ClientOption
 }
 
 // NewMetricsController creates a new metrics controller
@@ -73,6 +74,7 @@ func NewMetricsController(stopCh <-chan struct{}, restConfig *rest.Config, facto
 		queue: workqueue.NewTypedRateLimitingQueueWithConfig(workqueue.DefaultTypedControllerRateLimiter[any](), workqueue.TypedRateLimitingQueueConfig[any]{
 			Name: "metrics-adapter",
 		}),
+		clusterClientOption: clusterClientOption,
 	}
 	controller.addEventHandler()
 
@@ -239,7 +241,7 @@ func (m *MetricsController) handleClusters() bool {
 		if err != nil {
 			return false
 		}
-		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient)
+		clusterDynamicClient, err := util.NewClusterDynamicClientSet(clusterName, controlPlaneClient, m.clusterClientOption)
 		if err != nil {
 			return false
 		}
