@@ -158,6 +158,8 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		return err
 	}
 
+	time.Sleep(time.Minute)
+
 	detectorWorkerOptions := util.Options{
 		Name:               "resource detector",
 		KeyFunc:            ResourceItemKeyFunc,
@@ -786,7 +788,7 @@ func (d *ResourceDetector) BuildResourceBinding(object *unstructured.Unstructure
 			bindingSchedulePriority = &workv1alpha2.SchedulePriority{
 				Priority: kubePriorityClass.Value,
 				// TODO add preemptionpolicy
-				//PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
+				// PreemptionPolicy: kubePriorityClass.PreemptionPolicy,
 			}
 		case policyv1alpha1.PodPriorityClass:
 			return nil, fmt.Errorf("priority class source is PodPriorityClass, but PodPriorityClass is not supported yet")
