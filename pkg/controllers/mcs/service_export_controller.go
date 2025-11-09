@@ -318,8 +318,8 @@ func (c *ServiceExportController) getEventHandler(clusterName string) cache.Reso
 	return eventHandler
 }
 
-func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
-	return func(obj interface{}) {
+func (c *ServiceExportController) genHandlerAddFunc(clusterName string) func(obj interface{}, isInitialList bool) {
+	return func(obj interface{}, _ bool) {
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {

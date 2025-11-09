@@ -119,6 +119,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		KeyFunc:            NamespacedKeyFunc,
 		ReconcileFunc:      d.ReconcilePropagationPolicy,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.policyReconcileWorker = util.NewAsyncWorker(policyWorkerOptions)
 	d.policyReconcileWorker.Run(ctx, d.ConcurrentPropagationPolicySyncs)
@@ -127,6 +128,7 @@ func (d *ResourceDetector) Start(ctx context.Context) error {
 		KeyFunc:            NamespacedKeyFunc,
 		ReconcileFunc:      d.ReconcileClusterPropagationPolicy,
 		RateLimiterOptions: d.RateLimiterOptions,
+		UsePriorityQueue:   features.FeatureGate.Enabled(features.ControllerPriorityQueue),
 	}
 	d.clusterPolicyReconcileWorker = util.NewAsyncWorker(clusterPolicyWorkerOptions)
 	d.clusterPolicyReconcileWorker.Run(ctx, d.ConcurrentClusterPropagationPolicySyncs)
@@ -952,7 +954,15 @@ func (d *ResourceDetector) GetMatching(resourceSelectors []policyv1alpha1.Resour
 }
 
 // OnPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}) {
+func (d *ResourceDetector) OnPropagationPolicyAdd(obj interface{}, isInitialList bool) {
+	if priorityWorker, ok := d.policyReconcileWorker.(util.AsyncPriorityWorker); ok {
+		priority := 0
+		if isInitialList {
+			priority = util.LowPriority
+		}
+		priorityWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
+		return
+	}
 	d.policyReconcileWorker.Enqueue(obj)
 }
 
@@ -1023,7 +1033,15 @@ func (d *ResourceDetector) ReconcilePropagationPolicy(key util.QueueKey) error {
 }
 
 // OnClusterPropagationPolicyAdd handles object add event and push the object to queue.
-func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}) {
+func (d *ResourceDetector) OnClusterPropagationPolicyAdd(obj interface{}, isInitialList bool) {
+	if priorityWorker, ok := d.clusterPolicyReconcileWorker.(util.AsyncPriorityWorker); ok {
+		priority := 0
+		if isInitialList {
+			priority = util.LowPriority
+		}
+		priorityWorker.EnqueueWithOpts(util.AddOpts{Priority: priority}, obj)
+		return
+	}
 	d.clusterPolicyReconcileWorker.Enqueue(obj)
 }
 

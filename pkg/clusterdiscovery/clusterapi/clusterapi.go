@@ -97,7 +97,7 @@ func (d *ClusterDetector) discoveryCluster() {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *ClusterDetector) OnAdd(obj interface{}) {
+func (d *ClusterDetector) OnAdd(obj interface{}, _ bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -107,7 +107,7 @@ func (d *ClusterDetector) OnAdd(obj interface{}) {
 
 // OnUpdate handles object update event and push the object to queue.
 func (d *ClusterDetector) OnUpdate(_, newObj interface{}) {
-	d.OnAdd(newObj)
+	d.OnAdd(newObj, false)
 }
 
 // OnDelete handles object delete event and push the object to queue.
@@ -119,7 +119,7 @@ func (d *ClusterDetector) OnDelete(obj interface{}) {
 			return
 		}
 	}
-	d.OnAdd(obj)
+	d.OnAdd(obj, false)
 }
 
 // Reconcile performs a full reconciliation for the object referred to by the key.

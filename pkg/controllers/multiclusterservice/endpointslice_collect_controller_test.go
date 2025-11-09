@@ -92,7 +92,7 @@ func TestGenHandlerFuncs(t *testing.T) {
 			worker: mockWorker,
 		}
 		addFunc := controller.genHandlerAddFunc(clusterName)
-		addFunc(testObj)
+		addFunc(testObj, false)
 		assert.Equal(t, 1, mockWorker.addCount, "Add function should be called once")
 	})
 

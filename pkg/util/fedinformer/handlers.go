@@ -51,8 +51,8 @@ func NewHandlerOnAllEvents(fn func(interface{})) cache.ResourceEventHandler {
 }
 
 // NewHandlerOnEvents builds a ResourceEventHandler.
-func NewHandlerOnEvents(addFunc func(obj interface{}), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
-	return &cache.ResourceEventHandlerFuncs{
+func NewHandlerOnEvents(addFunc func(obj interface{}, isInitialList bool), updateFunc func(oldObj, newObj interface{}), deleteFunc func(obj interface{})) cache.ResourceEventHandler {
+	return &cache.ResourceEventHandlerDetailedFuncs{
 		AddFunc:    addFunc,
 		UpdateFunc: updateFunc,
 		DeleteFunc: deleteFunc,

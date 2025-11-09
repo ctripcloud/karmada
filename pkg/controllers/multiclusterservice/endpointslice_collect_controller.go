@@ -242,8 +242,8 @@ func (c *EndpointSliceCollectController) getEventHandler(clusterName string) cac
 	return eventHandler
 }
 
-func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}) {
-	return func(obj interface{}) {
+func (c *EndpointSliceCollectController) genHandlerAddFunc(clusterName string) func(obj interface{}, isInitialList bool) {
+	return func(obj interface{}, _ bool) {
 		curObj := obj.(runtime.Object)
 		key, err := keys.FederatedKeyFunc(clusterName, curObj)
 		if err != nil {

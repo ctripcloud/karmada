@@ -126,7 +126,7 @@ func (d *DependenciesDistributor) NeedLeaderElection() bool {
 }
 
 // OnAdd handles object add event and push the object to queue.
-func (d *DependenciesDistributor) OnAdd(obj interface{}) {
+func (d *DependenciesDistributor) OnAdd(obj interface{}, _ bool) {
 	runtimeObj, ok := obj.(runtime.Object)
 	if !ok {
 		return
@@ -153,9 +153,9 @@ func (d *DependenciesDistributor) OnUpdate(oldObj, newObj interface{}) {
 		return
 	}
 	if !equality.Semantic.DeepEqual(unstructuredOldObj.GetLabels(), unstructuredNewObj.GetLabels()) {
-		d.OnAdd(oldObj)
+		d.OnAdd(oldObj, false)
 	}
-	d.OnAdd(newObj)
+	d.OnAdd(newObj, false)
 }
 
 // OnDelete handles object delete event and push the object to queue.
@@ -167,7 +167,7 @@ func (d *DependenciesDistributor) OnDelete(obj interface{}) {
 			return
 		}
 	}
-	d.OnAdd(obj)
+	d.OnAdd(obj, false)
 }
 
 // reconcileResourceTemplate coordinates resources that may need to be distributed, such as Configmap, Service, etc.

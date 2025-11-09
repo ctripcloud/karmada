@@ -131,7 +131,7 @@ func TestNewHandlerOnEvents(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var addCalled, updateCalled, deleteCalled bool
-			addFunc := func(_ interface{}) { addCalled = true }
+			addFunc := func(_ interface{}, _ bool) { addCalled = true }
 			updateFunc := func(_, _ interface{}) { updateCalled = true }
 			deleteFunc := func(_ interface{}) { deleteCalled = true }
 
