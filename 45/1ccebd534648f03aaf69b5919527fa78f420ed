@@ -1,0 +1,152 @@
+pkg/util/rawdynamic/testdata/TestGoldenResponse/get
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/client_upstream_test.go
+  s_3cfb560515d8e7::t_17955f73d80c21 106,116,131,178,388,470,625
+  s_3cfb560515d8e7::t_cf7d155714133a 114-115,129-130
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-16,18-21,23-52,57,59-60,75-105,107-113,117-128,132-177,179-387,389-469,471-558,562-569,573-624,626-708,710-799
+  s_3cfb560515d8e7::t_ef81baff5dc445 709
+  s_3cfb560515d8e7::t_b028a1d1658525 17,53-56,58,73-74
+  s_3cfb560515d8e7::t_212c13950e1c60 22,61-72,559-561,570-572
+pkg/util/rawdynamic/testdata/TestGoldenResponse/update
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/testdata/TestGoldenResponse/responses/list
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-10
+pkg/util/rawdynamic/testdata/TestGoldenRequest/updatestatus
+  s_3cfb560515d8e7::t_d68b8cb50fc199 5,9
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-4,6-8
+pkg/util/rawdynamic/testdata/TestGoldenRequest/applystatus
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-9
+pkg/util/rawdynamic/testdata/TestGoldenResponse/updatestatus
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/testdata/TestGoldenRequest/update
+  s_3cfb560515d8e7::t_d68b8cb50fc199 5,9
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-4,6-8
+pkg/util/rawdynamic/testdata/TestGoldenResponse/list
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/testdata/TestGoldenResponse/responses/nonlist
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-10
+pkg/util/rawdynamic/simple.go
+  s_3cfb560515d8e7::t_5050404ee2b1cf 1-30,32,34-36,38-44,49-54,58-59,63-69,74,76-82,86-93,95-96,99-102,105-106,108-112,114-129,131-137,139-151,153-159,180-181,183-197,199-206,208-211,213-223,225-231,233-240,242-248,250-256,258-260,262-273,275-281,289-299,312-313,315-332,334-351
+  s_3cfb560515d8e7::t_9c71a0a04444c4 113,138,160-179,182,198,212,232,249,261,282-288,300-311,314,333
+  s_3cfb560515d8e7::t_0887bd13a1aeba 130,152,207,224,241,257,274
+  s_3cfb560515d8e7::t_3a29d870a4cf38 31,33,37,45-48,55-57,60-62,70-73,75,83-85,94,97-98,103-104,107
+pkg/util/rawdynamic/testdata/TestGoldenRequest/watch
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-6
+pkg/util/rawdynamic/types.go
+  s_3cfb560515d8e7::t_c63d1a53ec3bdb 1-20,22-23,25-136,159-189
+  s_3cfb560515d8e7::t_6136e6bce44493 21,137-158
+  s_3cfb560515d8e7::t_bcce817bd399b5 24
+pkg/util/rawdynamic/testdata/TestGoldenRequest/get
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-6
+pkg/util/rawdynamic/dynamiclister/shim.go
+  s_3cfb560515d8e7::t_a5b25867d9347e 32-33,38-39,45-47,49,52,67-68,74-76,78,81
+  s_3cfb560515d8e7::t_9d32363797fa7a 1-31,34-37,40-44,48,50-51,53-66,69-73,77,79-80,82-84
+pkg/util/rawdynamic/rawdynamic_test.go
+  s_3cfb560515d8e7::t_e98c4c62606235 294,296,304,306
+  s_3cfb560515d8e7::t_fd44c22485703a 92
+  s_3cfb560515d8e7::t_d027ac433b0542 226-233
+  s_3cfb560515d8e7::t_4699b0c8a8201c 290-293,297-299
+  s_3cfb560515d8e7::t_fed244dcd2b746 295,305
+  s_3cfb560515d8e7::t_6aaa23d08f38ed 318
+  s_3cfb560515d8e7::t_c3f628108f2550 1-16,18-21,23-28,32-36,38-42,44-45,47-48,50-62,64-84,86-88,90-91,96-97,99-101,103-134,136-143,163-169,171-174,176-199,201-207,209-213,277-289,300-303,307-309,323-324
+  s_3cfb560515d8e7::t_433b538906a517 37
+  s_3cfb560515d8e7::t_747415c876a2cc 17,29-31,43,49,63,85,102,144-162,170,175,200,208,250,254
+  s_3cfb560515d8e7::t_050bc33407e4cb 135,310-317,319-322
+  s_3cfb560515d8e7::t_559faec2195a4e 98,217
+  s_3cfb560515d8e7::t_5df84ca969bb05 22,46,93-95,214-216,218-225,234-249,251-253,255-276
+  s_3cfb560515d8e7::t_f1e61146e9c158 89
+pkg/util/rawdynamic/testdata/TestGoldenResponse/watch
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/dynamiclister/lister.go
+  s_3cfb560515d8e7::t_5e2d57a0201455 1-26,32-35,37,39-40,43-48,51-58,64-65,71-72,75-80,83-91
+  s_3cfb560515d8e7::t_bbe8c91d2f49af 27-31,36,38,41-42,49-50,59-63,66-70,73-74,81-82
+pkg/util/rawdynamic/testdata/TestGoldenRequest/create
+  s_3cfb560515d8e7::t_d68b8cb50fc199 5,9
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-4,6-8
+pkg/util/rawdynamic/dynamicinformer/interface.go
+  s_3cfb560515d8e7::t_e517d7f646787d 1-24,26,29,32,36,48-50,53
+  s_3cfb560515d8e7::t_fa765432e0c794 25,27-28,30-31,33-35,37-47,51-52
+pkg/util/rawdynamic/testdata/TestGoldenResponse/create
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1
+pkg/util/rawdynamic/testdata/TestGoldenRequest/patch
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-9
+pkg/util/rawdynamic/golden_upstream_test.go
+  s_3cfb560515d8e7::t_6a93c7d0a7e696 300,305,312,317,324,330,342
+  s_3cfb560515d8e7::t_721625ac7edaa9 17,86,90,102,114,125,136,146,158,168,178,192,205,245,294,299,311,323,336,348,361,386
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-16,18-35,37-43,83-85,87-89,91-92,94-101,103-104,106-113,115-116,118-124,126-135,137-145,147-157,159-167,169-177,179-191,193-195,197-204,206-208,210-244,246-293,295-298,301-304,306-310,313-316,318-322,325-329,331-335,337-341,343-347,349-353,355-360,362-385,387-437
+  s_3cfb560515d8e7::t_a97e119943b7a8 36
+  s_3cfb560515d8e7::t_61315528e7194b 61-82,354
+  s_3cfb560515d8e7::t_6fe7a09d263eea 44-60,93,105,117,196,209
+pkg/util/rawdynamic/scheme.go
+  s_3cfb560515d8e7::t_d8c512a0b42103 74,76-78,83-107
+  s_3cfb560515d8e7::t_a75a5e66051753 73,75
+  s_3cfb560515d8e7::t_915fb19707d617 1-72,79-82,108-215
+pkg/util/rawdynamic/dynamiclister/interface.go
+  s_3cfb560515d8e7::t_ba40ecafa62215 1-23,25,27,29,31-33,35,37,39-40
+  s_3cfb560515d8e7::t_8fb10ab17d1cca 24,26,28,30,34,36,38
+pkg/util/rawdynamic/testdata/TestGoldenResponse/responses/events
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-17
+pkg/util/rawdynamic/interface.go
+  s_3cfb560515d8e7::t_bb3b01d24afeee 1-55
+pkg/util/rawdynamic/testdata/TestGoldenRequest/list
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-6
+pkg/util/rawdynamic/dynamicinformer/informer.go
+  s_3cfb560515d8e7::t_050bc33407e4cb 175-177
+  s_3cfb560515d8e7::t_da762b32c389d8 1-55,60-62,67-69,72-75,78-80,84-87,89-97,109-112,114-135,137-174,178-198
+  s_3cfb560515d8e7::t_964d277ab9b747 56-59,63-66,70-71,76-77,81-83,88,98-108,113,136
+pkg/util/rawdynamic/testdata/TestGoldenRequest/apply
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-9
+pkg/util/rawdynamic/testdata/TestGoldenRequest/delete
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-9
+pkg/util/rawdynamic/dynamiclister/lister_upstream_test.go
+  s_3cfb560515d8e7::t_4333aa5176749c 25,40,114,138,211,227,235
+  s_3cfb560515d8e7::t_762ad45a5b5838 20,26-27
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-19,21-24,28-39,41-113,115-137,139-210,212-226,231,233-234,236-253
+  s_3cfb560515d8e7::t_b98756f25875c0 228-230,232
+pkg/util/rawdynamic/testdata/TestGoldenRequest/deletecollection
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-9
+pkg/util/rawdynamic/dynamicinformer/informer_upstream_test.go
+  s_3cfb560515d8e7::t_092b0e8a2c9ca0 44,47,58,61,154,158-159,233,276,279-280,287,295,298,310,318,321,333,340,343,357,391
+  s_3cfb560515d8e7::t_389b4cb0b9ee75 311,392-394,396
+  s_3cfb560515d8e7::t_a97e119943b7a8 27-29,33
+  s_3cfb560515d8e7::t_499dcf84c97489 113
+  s_3cfb560515d8e7::t_0c9a9ad62f81e3 260,381,397-425
+  s_f2282569688979::t_e3ce47569976e3 67,131,426-465
+  s_f2282569688979::t_5aa58de151943f 37,68
+  s_3cfb560515d8e7::t_ab9612f5fb7cb1 1-26,30-32,34-36,38-43,45-46,48-57,59-60,62-66,69-112,114-130,132-153,155-157,160-232,234-259,261-275,277-278,281-286,288-294,296-297,299-309,312-317,319-320,322-332,334-339,341-342,344-356,358-380,382-390,395,466
+pkg/util/rawdynamic/fake/simple.go
+  s_3cfb560515d8e7::t_5133b585c833c8 30,57-58,66-67,71
+  s_3cfb560515d8e7::t_418e5287679681 1-29,31-56,59-65,68-70,72-74,76-83,85-92,94-135,137-179,181-188,208-226,234-241
+  s_3cfb560515d8e7::t_52a8be36b78313 75,84,93,136,180,189-207
+  s_3cfb560515d8e7::t_0e9e70246871b6 233
+  s_3cfb560515d8e7::t_29ae3465f5a508 227-232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.24-trip",
+  "base_commit_sha": "451ccebd534648f03aaf69b5919527fa78f420ed",
+  "prompts": {},
+  "humans": {
+    "h_c5561c34c31681": {
+      "author": "zach593 <zach_li@outlook.com>"
+    }
+  },
+  "sessions": {
+    "s_3cfb560515d8e7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1235-15cc-7de2-ac45-00240fb0f686",
+        "model": "gpt-5.5"
+      },
+      "human_author": "zach593 <zach_li@outlook.com>"
+    },
+    "s_f2282569688979": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1353-d87d-7861-bc69-c8be417873bb",
+        "model": "gpt-5.5"
+      },
+      "human_author": "zach593 <zach_li@outlook.com>"
+    }
+  }
+}
