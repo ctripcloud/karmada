@@ -22,8 +22,10 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/tools/cache"
 
 	dynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 )
 
 var (
@@ -35,7 +37,7 @@ var (
 // GetInstance returns a shared MultiClusterInformerManager instance.
 func GetInstance() MultiClusterInformerManager {
 	once.Do(func() {
-		instance = NewMultiClusterInformerManager(ctx)
+		instance = NewMultiClusterInformerManager(ctx, fedinformer.StripUnusedFields)
 	})
 	return instance
 }
@@ -75,17 +77,19 @@ type MultiClusterInformerManager interface {
 }
 
 // NewMultiClusterInformerManager constructs a new instance of multiClusterInformerManagerImpl.
-func NewMultiClusterInformerManager(ctx context.Context) MultiClusterInformerManager {
+func NewMultiClusterInformerManager(ctx context.Context, transformFunc cache.TransformFunc) MultiClusterInformerManager {
 	return &multiClusterInformerManagerImpl{
-		managers: make(map[string]SingleClusterInformerManager),
-		ctx:      ctx,
+		managers:      make(map[string]SingleClusterInformerManager),
+		ctx:           ctx,
+		transformFunc: transformFunc,
 	}
 }
 
 type multiClusterInformerManagerImpl struct {
-	managers map[string]SingleClusterInformerManager
-	ctx      context.Context
-	lock     sync.RWMutex
+	managers      map[string]SingleClusterInformerManager
+	ctx           context.Context
+	transformFunc cache.TransformFunc
+	lock          sync.RWMutex
 }
 
 func (m *multiClusterInformerManagerImpl) getManager(cluster string) (SingleClusterInformerManager, bool) {
@@ -104,7 +108,7 @@ func (m *multiClusterInformerManagerImpl) ForCluster(cluster string, client dyna
 		return manager
 	}
 
-	manager := NewSingleClusterInformerManager(m.ctx, client, defaultResync)
+	manager := NewSingleClusterInformerManager(m.ctx, client, defaultResync, m.transformFunc)
 	m.managers[cluster] = manager
 	return manager
 }

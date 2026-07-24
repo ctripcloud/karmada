@@ -24,13 +24,14 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 
 	fakedynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 )
 
 // NewSingleClusterInformerManagerByRS will build a fake SingleClusterInformerManager and can add resource.
 func NewSingleClusterInformerManagerByRS(src string, obj runtime.Object) genericmanager.SingleClusterInformerManager {
 	c := fakedynamic.NewSimpleDynamicClient(scheme.Scheme, obj)
-	m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0)
+	m := genericmanager.NewSingleClusterInformerManager(context.TODO(), c, 0, fedinformer.StripUnusedFields)
 	m.Lister(corev1.SchemeGroupVersion.WithResource(src))
 	m.Start()
 	m.WaitForCacheSync()

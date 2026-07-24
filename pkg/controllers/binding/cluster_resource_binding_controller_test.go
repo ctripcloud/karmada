@@ -45,6 +45,7 @@ import (
 	testing2 "github.com/karmada-io/karmada/pkg/search/proxy/testing"
 	"github.com/karmada-io/karmada/pkg/util"
 	fakedynamic "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
+	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
 	"github.com/karmada-io/karmada/pkg/util/gclient"
 	"github.com/karmada-io/karmada/pkg/util/indexregistry"
@@ -65,7 +66,7 @@ func makeFakeCRBCByResource(rs *workv1alpha2.ObjectReference) (*ClusterResourceB
 			RESTMapper: testing2.RestMapper,
 			InformerManager: func() genericmanager.SingleClusterInformerManager {
 				dynamicClient := fakedynamic.NewSimpleDynamicClient(scheme.Scheme)
-				return genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0)
+				return genericmanager.NewSingleClusterInformerManager(context.TODO(), dynamicClient, 0, fedinformer.StripUnusedFields)
 			}(),
 			DynamicClient: tempDyClient,
 		}, nil
