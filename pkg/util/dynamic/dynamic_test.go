@@ -155,6 +155,24 @@ func TestRawObjectToUnstructuredPreservesIntegerNumbers(t *testing.T) {
 	}
 }
 
+func TestRawObjectMetadataOnly(t *testing.T) {
+	obj, err := dynamic.NewRawObject([]byte(rawDeployment))
+	if err != nil {
+		t.Fatalf("NewRawObject() error = %v", err)
+	}
+
+	metadataOnly := obj.MetadataOnly()
+	assertRawObjectJSONEqual(t, metadataOnly, `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"namespace":"default","name":"demo","labels":{"app":"demo"},"resourceVersion":"7"}}`)
+
+	u, err := metadataOnly.ToUnstructured()
+	if err != nil {
+		t.Fatalf("ToUnstructured() error = %v", err)
+	}
+	if _, found, err := unstructured.NestedFieldNoCopy(u.Object, "spec"); err != nil || found {
+		t.Fatalf("metadata-only object should not retain spec, found=%v err=%v", found, err)
+	}
+}
+
 func TestRawObjectMarshalJSONOverlaysTypeAndObjectMeta(t *testing.T) {
 	obj, err := dynamic.NewRawObject([]byte(`{"metadata":{"namespace":"default","name":"demo"},"spec":{"replicas":3}}`))
 	if err != nil {

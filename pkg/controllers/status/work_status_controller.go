@@ -81,6 +81,53 @@ type WorkStatusController struct {
 	ResourceInterpreter         resourceinterpreter.ResourceInterpreter
 }
 
+// NewWorkStatusTransformFunc returns a cache transform that keeps full workload
+// objects only when they map to a Work.
+func NewWorkStatusTransformFunc(controlPlaneClient client.Reader) cache.TransformFunc {
+	return func(obj any) (any, error) {
+		transformedObj, err := fedinformer.StripUnusedFields(obj)
+		if err != nil {
+			return obj, err
+		}
+
+		mappedToWork, err := mapsToWork(controlPlaneClient, transformedObj)
+		if err != nil {
+			return transformedObj, err
+		}
+		if mappedToWork {
+			return transformedObj, nil
+		}
+		return fedinformer.RetainMetadataFields(transformedObj)
+	}
+}
+
+func mapsToWork(controlPlaneClient client.Reader, obj any) (bool, error) {
+	if controlPlaneClient == nil {
+		return false, nil
+	}
+
+	resource, ok := obj.(dynamic.Metadata)
+	if !ok {
+		return false, nil
+	}
+
+	annotations := resource.GetAnnotations()
+	workNamespace, nsExist := annotations[workv1alpha2.WorkNamespaceAnnotation]
+	workName, nameExist := annotations[workv1alpha2.WorkNameAnnotation]
+	if !nsExist || !nameExist {
+		return false, nil
+	}
+
+	work := &workv1alpha1.Work{}
+	if err := controlPlaneClient.Get(context.Background(), client.ObjectKey{Namespace: workNamespace, Name: workName}, work); err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 // Reconcile performs a full reconciliation for the object referred to by the Request.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.

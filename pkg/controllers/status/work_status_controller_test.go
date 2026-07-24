@@ -48,6 +48,7 @@ import (
 	"github.com/karmada-io/karmada/pkg/resourceinterpreter/default/native"
 	"github.com/karmada-io/karmada/pkg/sharedcli/ratelimiterflag"
 	"github.com/karmada-io/karmada/pkg/util"
+	utildynamic "github.com/karmada-io/karmada/pkg/util/dynamic"
 	dynamicfake "github.com/karmada-io/karmada/pkg/util/dynamic/adapter/fake"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer"
 	"github.com/karmada-io/karmada/pkg/util/fedinformer/genericmanager"
@@ -564,6 +565,73 @@ func newPod(workNs, workName string, wrongAnnotations ...bool) *corev1.Pod {
 		}
 	}
 	return pod
+}
+
+func TestWorkStatusTransformFunc(t *testing.T) {
+	workNamespace := "karmada-es-cluster"
+	workName := "work-name"
+	work := &workv1alpha1.Work{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: workNamespace,
+			Name:      workName,
+		},
+	}
+	transformFunc := NewWorkStatusTransformFunc(fake.NewClientBuilder().WithScheme(gclient.NewSchema()).WithObjects(work).Build())
+
+	tests := []struct {
+		name      string
+		raw       []byte
+		wantSpec  bool
+		wantError bool
+	}{
+		{
+			name: "keeps full object when object maps to existing Work",
+			raw: fmt.Appendf(nil, `{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"default","name":"pod","annotations":{%q:%q,%q:%q}},"spec":{"nodeName":"node1"},"status":{"phase":"Running"}}`,
+				workv1alpha2.WorkNamespaceAnnotation, workNamespace,
+				workv1alpha2.WorkNameAnnotation, workName),
+			wantSpec: true,
+		},
+		{
+			name: "keeps metadata only when annotated Work does not exist",
+			raw: fmt.Appendf(nil, `{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"default","name":"pod","annotations":{%q:%q,%q:%q}},"spec":{"nodeName":"node1"},"status":{"phase":"Running"}}`,
+				workv1alpha2.WorkNamespaceAnnotation, workNamespace,
+				workv1alpha2.WorkNameAnnotation, "missing-work"),
+			wantSpec: false,
+		},
+		{
+			name:     "keeps metadata only when object has no Work mapping annotations",
+			raw:      []byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"default","name":"pod"},"spec":{"nodeName":"node1"},"status":{"phase":"Running"}}`),
+			wantSpec: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rawObj, err := utildynamic.NewRawObject(tt.raw)
+			assert.NoError(t, err)
+
+			got, err := transformFunc(rawObj)
+			if tt.wantError {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+
+			gotRaw, ok := got.(*utildynamic.RawObject)
+			if !ok {
+				t.Fatalf("expected *dynamic.RawObject, got %T", got)
+			}
+			gotObj, err := gotRaw.ToUnstructured()
+			assert.NoError(t, err)
+			assert.Equal(t, "pod", gotObj.GetName())
+			_, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec")
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantSpec, found)
+			_, found, err = unstructured.NestedFieldNoCopy(gotObj.Object, "status")
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantSpec, found)
+		})
+	}
 }
 
 type fakeDynamicClusterClients struct {

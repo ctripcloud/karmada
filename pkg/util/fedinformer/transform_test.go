@@ -23,8 +23,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	workv1alpha1 "github.com/karmada-io/karmada/pkg/apis/work/v1alpha1"
+	"github.com/karmada-io/karmada/pkg/util/dynamic"
 )
 
 func TestStripUnusedFields(t *testing.T) {
@@ -90,6 +92,61 @@ func TestStripUnusedFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRetainMetadataFields(t *testing.T) {
+	t.Run("raw object keeps rawdynamic type", func(t *testing.T) {
+		rawObj, err := dynamic.NewRawObject([]byte(`{"apiVersion":"v1","kind":"Pod","metadata":{"namespace":"default","name":"pod","labels":{"app":"demo"}},"spec":{"nodeName":"node1"}}`))
+		if err != nil {
+			t.Fatalf("NewRawObject() error = %v", err)
+		}
+
+		got, err := RetainMetadataFields(rawObj)
+		if err != nil {
+			t.Fatalf("RetainMetadataFields() error = %v", err)
+		}
+		gotRaw, ok := got.(*dynamic.RawObject)
+		if !ok {
+			t.Fatalf("expected *dynamic.RawObject, got %T", got)
+		}
+		gotObj, err := gotRaw.ToUnstructured()
+		if err != nil {
+			t.Fatalf("ToUnstructured() error = %v", err)
+		}
+		if gotObj.GetName() != "pod" || gotObj.GetLabels()["app"] != "demo" {
+			t.Fatalf("metadata was not retained: %#v", gotObj.Object)
+		}
+		if _, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec"); err != nil || found {
+			t.Fatalf("spec should not be retained, found=%v err=%v", found, err)
+		}
+	})
+
+	t.Run("unstructured keeps unstructured type", func(t *testing.T) {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "Pod",
+			"metadata": map[string]any{
+				"namespace": "default",
+				"name":      "pod",
+			},
+			"spec": map[string]any{"nodeName": "node1"},
+		}}
+
+		got, err := RetainMetadataFields(obj)
+		if err != nil {
+			t.Fatalf("RetainMetadataFields() error = %v", err)
+		}
+		gotObj, ok := got.(*unstructured.Unstructured)
+		if !ok {
+			t.Fatalf("expected *unstructured.Unstructured, got %T", got)
+		}
+		if gotObj.GetName() != "pod" {
+			t.Fatalf("metadata was not retained: %#v", gotObj.Object)
+		}
+		if _, found, err := unstructured.NestedFieldNoCopy(gotObj.Object, "spec"); err != nil || found {
+			t.Fatalf("spec should not be retained, found=%v err=%v", found, err)
+		}
+	})
 }
 
 func TestNodeTransformFunc(t *testing.T) {

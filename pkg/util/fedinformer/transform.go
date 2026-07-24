@@ -23,7 +23,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
+
+	"github.com/karmada-io/karmada/pkg/util/dynamic"
 )
 
 // StripUnusedFields is the transform function for shared informers,
@@ -41,6 +45,55 @@ func StripUnusedFields(obj any) (any, error) {
 	// ManagedFields is large and we never use it
 	accessor.SetManagedFields(nil)
 	return obj, nil
+}
+
+// RetainMetadataFields keeps only type and object metadata on dynamic informer objects.
+func RetainMetadataFields(obj any) (any, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
+
+	switch t := obj.(type) {
+	case *dynamic.RawObject:
+		return t.MetadataOnly(), nil
+	case *unstructured.Unstructured:
+		return metadataOnlyUnstructured(t), nil
+	}
+
+	runtimeObj, ok := obj.(runtime.Object)
+	if !ok {
+		return obj, nil
+	}
+	unstructuredObj, err := runtime.DefaultUnstructuredConverter.ToUnstructured(runtimeObj)
+	if err != nil {
+		return obj, err
+	}
+	return metadataOnlyUnstructured(&unstructured.Unstructured{Object: unstructuredObj}), nil
+}
+
+func metadataOnlyUnstructured(obj *unstructured.Unstructured) *unstructured.Unstructured {
+	metadataOnly := &unstructured.Unstructured{}
+	metadataOnly.SetAPIVersion(obj.GetAPIVersion())
+	metadataOnly.SetKind(obj.GetKind())
+	copyObjectMetadata(metadataOnly, obj)
+	return metadataOnly
+}
+
+func copyObjectMetadata(dst, src metav1.Object) {
+	dst.SetNamespace(src.GetNamespace())
+	dst.SetName(src.GetName())
+	dst.SetGenerateName(src.GetGenerateName())
+	dst.SetUID(src.GetUID())
+	dst.SetResourceVersion(src.GetResourceVersion())
+	dst.SetGeneration(src.GetGeneration())
+	dst.SetLabels(src.GetLabels())
+	dst.SetAnnotations(src.GetAnnotations())
+	dst.SetOwnerReferences(src.GetOwnerReferences())
+	dst.SetFinalizers(src.GetFinalizers())
+	dst.SetManagedFields(src.GetManagedFields())
+	dst.SetCreationTimestamp(src.GetCreationTimestamp())
+	dst.SetDeletionTimestamp(src.GetDeletionTimestamp())
+	dst.SetDeletionGracePeriodSeconds(src.GetDeletionGracePeriodSeconds())
 }
 
 // NodeTransformFunc is the dedicated transform function for Node objects.

@@ -147,6 +147,19 @@ func (o *RawObject) DeepCopyObject() runtime.Object {
 	return o.DeepCopy()
 }
 
+// MetadataOnly returns a copy of RawObject that keeps type and object metadata,
+// but drops the original raw payload.
+func (o *RawObject) MetadataOnly() *RawObject {
+	if o == nil {
+		return nil
+	}
+
+	out := new(RawObject)
+	out.TypeMeta = o.TypeMeta
+	out.ObjectMeta = *o.ObjectMeta.DeepCopy()
+	return out
+}
+
 // ToUnstructured converts RawObject to an unstructured object.
 func (o *RawObject) ToUnstructured() (*unstructured.Unstructured, error) {
 	u := &unstructured.Unstructured{}
