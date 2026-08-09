@@ -1,0 +1,28 @@
+pkg/util/fedinformer/transform_test.go
+  s_de179d8c68bd97::t_76492459a7f1a4 116-119
+pkg/util/fedinformer/transform.go
+  h_c5561c34c31681 26,47-66
+pkg/controllers/status/work_status_controller.go
+  h_c5561c34c31681 83-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "2ccf4b77bf847fb486903d2ce2e6e8f5d37a4b87",
+  "prompts": {},
+  "humans": {
+    "h_c5561c34c31681": {
+      "author": "zach593 <zach_li@outlook.com>"
+    }
+  },
+  "sessions": {
+    "s_de179d8c68bd97": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fe655-c120-7281-a78a-011304564685",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "zach593 <zach_li@outlook.com>"
+    }
+  }
+}
