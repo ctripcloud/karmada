@@ -1,0 +1,14 @@
+pkg/controllers/execution/execution_controller.go
+  h_c5561c34c31681 158,479,502-505,508,514,535-538,547-549
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.39-trip",
+  "base_commit_sha": "bb4edaae99e4455eee9082b91e62d2020fec601e",
+  "prompts": {},
+  "humans": {
+    "h_c5561c34c31681": {
+      "author": "zach593 <zach_li@outlook.com>"
+    }
+  }
+}
